@@ -81,6 +81,30 @@ The server listens on port `8000` and stores SQLite data under `data/`. Set `POR
 
 ## Verify
 
+For the Assignment 2 extraction checks, install the pinned verification tools in
+the project environment as well as the application dependencies:
+
+```sh
+python -m pip install -r requirements.txt -r requirements-test.txt \
+  -r services/rooms/requirements.txt -r services/game/requirements.txt
+bash tools/verify_service.sh rooms
+bash tools/verify_service.sh game
+python -m tools.check_service_contracts
+```
+
+Each independent service enforces 90% core coverage and tests its own database/API.
+Regenerate committed OpenAPI after changing a route or DTO with
+`python -m tools.check_service_contracts --write`. The checker validates the
+OpenAPI specification and fails when the committed files differ from the apps.
+The scripts default to `.venv/bin/python`; set `PYTHON=python` to use another
+activated environment. Service-specific coverage files avoid overwriting each
+other or the full-suite coverage results.
+
+GitHub Actions runs these checks on pushes and PRs, plus the monolith compatibility
+suite and frontend tests. This is initial CI: Docker builds, SQL Server tests,
+`system.yaml` validation and Azure CD remain subsequent milestones. No CI job
+connects to Azure or uses live provider credentials.
+
 With the project Python environment installed and **Node 24+**, run all tests:
 
 ```bash
@@ -122,4 +146,9 @@ The app runs in one process with two core domains: **Rooms** handles players and
 
 ## Assignment evidence
 
-[ADR.md](ADR.md) records architecture decisions, [AI_USAGE.md](AI_USAGE.md) records AI assistance, and the [assignment checklist](docs/17_ASSIGNMENT_REVIEW.md) tracks the required deliverables.
+[ADR.md](ADR.md) records architecture decisions, and the
+[Assignment 1 checklist](docs/17_ASSIGNMENT_REVIEW.md) tracks its deliverables.
+The root AI_USAGE.md is maintained locally and intentionally ignored during
+Assignment 2; the author will review, clean and commit it before final submission.
+The [Assignment 2 plan](docs/19_ASSIGNMENT_2_PLAN.md) and
+[service boundary](docs/20_SERVICE_SPLIT.md) track the current work.

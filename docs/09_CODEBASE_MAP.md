@@ -1,6 +1,10 @@
 # 09 — Codebase Map
 
-Path lookup for the modular monolith. [Architecture](05_ARCHITECTURE.md) explains component boundaries; [Game Rules](03_GAME_RULES.md), [Data Model](06_DATA_MODEL.md) and [API](07_API_AND_RUNTIME.md) own the contracts.
+Path lookup for the playable monolith and the independently startable extraction
+APIs. [Architecture](05_ARCHITECTURE.md) describes the current browser runtime;
+[service split](20_SERVICE_SPLIT.md) distinguishes extraction from target behavior.
+[Game Rules](03_GAME_RULES.md), [Data Model](06_DATA_MODEL.md) and
+[API](07_API_AND_RUNTIME.md) own the existing game contracts.
 
 ## Backend ownership
 
@@ -8,7 +12,13 @@ Path lookup for the modular monolith. [Architecture](05_ARCHITECTURE.md) explain
 |---|---|
 | `backend/__main__.py` | Documented `python -m backend` startup |
 | `backend/app.py` | `create_app` composition root, dependency injection, HTTP wiring, health, lifespan and static mounts |
-| `backend/core/` | Immutable environment configuration, domain errors and source-relative resource paths |
+| `backend/core/` | Monolith environment configuration and source-relative resource paths |
+| `services/rooms/app.py`, `__main__.py` | Independent Rooms API, trusted import admission, protected snapshot export and process startup |
+| `services/game/app.py`, `__main__.py` | Independent private Game API over frozen values and process startup |
+| `services/*/development/001_init.sql` | Separate, domain-only SQLite development schemas; SQL Server port is pending |
+| `services/*/openapi.json`, `requirements.txt`, `tests/` | Committed API specifications, pinned runtime dependencies and own-database tests |
+| `shared/contracts.py`, `errors.py` | Validated transport values and a shared domain error value |
+| `shared/development.py` | Small extraction runtime: own SQLite connections/migration ledger, health and internal authentication |
 | `backend/api/` | Strict schemas, transport mapping, cookies, Origin checks, admission rate limits and invitation URL generation |
 | `backend/application/commands.py` | `RoomCommands` and `GameCommands` expose application use cases to HTTP |
 | `backend/application/coordinator.py` | Server acceptance time, authorization, transaction ordering and Rooms/Game lifecycle reconciliation |
@@ -36,7 +46,7 @@ Path lookup for the modular monolith. [Architecture](05_ARCHITECTURE.md) explain
 | `backend/catalog/links.py` | Permanent positive identity links, bidirectional storage, scope/purpose and fingerprint invalidation |
 | `backend/catalog/selection.py` | Resolve signed bulk references before submission using narrow injected capabilities |
 | `backend/catalog/tokens.py` | Signed room-scoped selected-song facts; process secret and twenty-minute lifetime |
-| `backend/catalog/identity.py` | Shared pure identity/title normalization |
+| `shared/recording_identity.py` | Shared pure identity/title normalization |
 | `backend/catalog/importer.py`, `starter/` | Streaming optional bulk metadata import and the small MusicBrainz starter/provenance |
 | `backend/music/sources.py` | `MusicSource` / `ListeningData`, Spotify and simulated Demo listening adapters, exact-pack local preview validation |
 | `backend/music/authorization.py` | `AuthorizationFlow` and `SpotifyAuthorization`; provider-specific PKCE state, callback policy and token exchange |

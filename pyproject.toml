@@ -1,5 +1,5 @@
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "services/rooms/tests", "services/game/tests"]
 pythonpath = ["."]
 
 [tool.coverage.run]

@@ -18,5 +18,5 @@ verification_python="${PYTHON:-.venv/bin/python}"
 # Preparation is small and critical: also prevent dilution within Game coverage.
 "$verification_python" -m coverage report \
   --include=services/game/domain/preparation.py --fail-under=90
-"$verification_python" -m pytest -q tests/integration
+"$verification_python" -m pytest -q tests/integration services/rooms/tests services/game/tests
 node --test tests/frontend/*.test.mjs

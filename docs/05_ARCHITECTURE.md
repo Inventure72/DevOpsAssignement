@@ -2,6 +2,12 @@
 
 The application is a modular monolith: one Python process, two business domains (**Rooms** and **Game**), and one SQLite database. The browser uses native JavaScript modules. See the [data model](06_DATA_MODEL.md), [API contract](07_API_AND_RUNTIME.md) and [codebase map](09_CODEBASE_MAP.md).
 
+Assignment 2 extraction checkpoint (2026-11-17): domain implementations now live
+under `services/rooms/domain` and `services/game/domain`. Independently startable
+APIs use separate development SQLite databases, while this documented browser
+runtime still uses the original coordinator. [The service boundary](20_SERVICE_SPLIT.md)
+records the target HTTP workflows and remaining SQL Server/UI integration work.
+
 ## Responsibilities and dependencies
 
 | Component | Responsibility |

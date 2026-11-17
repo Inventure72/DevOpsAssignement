@@ -11,6 +11,21 @@ class Body(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
 
+class ErrorDetail(Body):
+    code: str
+    message: str
+
+
+class ErrorResponse(Body):
+    error: ErrorDetail
+
+
+class Health(Body):
+    status: str
+    db: str
+    version: str
+
+
 class Artist(Body):
     artist_key: Identifier
     name: Annotated[str, Field(min_length=1, max_length=500)]

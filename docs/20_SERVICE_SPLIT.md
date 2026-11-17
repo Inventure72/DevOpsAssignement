@@ -71,3 +71,23 @@ domain's tables. They are not the Assignment 2 SQL Server deliverable and do not
 transfer existing records automatically. SQL Server, data transfer, provider/UI
 wiring, durable cross-service orchestration, deployment and production migration
 evidence remain scheduled work.
+
+## Verified checkpoint — 2026-11-17
+
+Local verification of a clean copy of the staged deliverables, installed into a
+fresh project `.venv`, passed **323 public-source unit tests, 256 integration/API/
+process tests and 214 frontend tests**. Core coverage remains **94.79%** overall:
+Rooms **94.38%**, Game **94.94%**. Independent service checks passed 35 Rooms and
+91 Game checks; these overlap the full suite and are not additional unique tests.
+
+The real-process test starts both entry points with isolated temporary databases,
+creates memberships, exports a host-authorized snapshot, starts Game through its
+private API and observes successful Game health/frozen reads after Rooms stops.
+The test harness transfers the snapshot; server-side Start orchestration is still
+pending. No live provider, physical-device audio or Azure deployment is claimed.
+
+OpenAPI validation/drift checks, application-source lint and `actionlint` passed.
+The clean-source check found that existing launcher tests require a project-local
+`.venv`; the regression CI job now creates it before installation. The corrected
+clean-source verification passed without weakening those tests. GitHub Actions
+execution remains unverified until the branch is pushed.

@@ -11,6 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI, Header
 from fastapi.responses import JSONResponse
 
+from shared.contracts import ErrorResponse, Health
 from shared.errors import DomainError
 
 
@@ -108,7 +109,14 @@ def service_app(name, config, migrations):
         db.initialize()
         yield
 
-    app = FastAPI(title=f"Who's On Repeat: {name}", lifespan=lifespan)
+    app = FastAPI(
+        title=f"Who's On Repeat: {name}",
+        lifespan=lifespan,
+        responses={
+            code: {"model": ErrorResponse}
+            for code in (400, 401, 403, 404, 409, 410, 503)
+        },
+    )
     app.state.db = db
 
     @app.exception_handler(DomainError)
@@ -118,8 +126,11 @@ def service_app(name, config, migrations):
             status_code=exc.status,
         )
 
-    @app.get("/health", responses={503: {"description": "Own database unavailable"}})
-    def health() -> dict[str, str]:
+    @app.get(
+        "/health",
+        responses={503: {"model": Health, "description": "Own database unavailable"}},
+    )
+    def health() -> Health:
         try:
             db.check()
         except (sqlite3.Error, OSError):
@@ -131,7 +142,7 @@ def service_app(name, config, migrations):
                 },
                 status_code=503,
             )
-        return {"status": "ok", "db": "ok", "version": config.version}
+        return Health(status="ok", db="ok", version=config.version)
 
     def internal(x_service_token: str | None = Header(default=None)):
         if not config.service_token:
