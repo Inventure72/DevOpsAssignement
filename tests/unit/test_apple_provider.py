@@ -2,7 +2,7 @@
 
 import pytest
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from backend.music.apple import AppleCatalog, normalize_song
 from backend.music.http import ProviderHttpError
 from backend.music.previews import PreviewResolver

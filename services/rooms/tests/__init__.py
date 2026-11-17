@@ -1,0 +1,1 @@
+"""Rooms extraction integration tests."""

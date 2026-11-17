@@ -1,6 +1,6 @@
 """Map the backend's shared pack validator to actionable launch errors."""
 
-from backend.rooms.demo import validate_pack_assets
+from services.rooms.domain.demo import validate_pack_assets
 from tools.launch_support import LaunchError
 
 

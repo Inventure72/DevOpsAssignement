@@ -91,7 +91,7 @@ With the project Python environment activated, measure core unit coverage:
 
 ```bash
 python -m pytest -q tests/unit \
-  --cov=backend.rooms.service --cov=backend.game.service \
+  --cov=services.rooms.domain.service --cov=backend.game.service \
   --cov=backend.game.scoring --cov=backend.game.selection \
   --cov=backend.game.preparation --cov=backend.game.song_titles \
   --cov-report=term-missing --cov-fail-under=90
@@ -104,6 +104,12 @@ The Oct 4 public-source run passed **323 unit + 245 integration = 568 Python tes
 Tests use temporary data and offline provider substitutes; no keys or music download are needed. On Windows, run the Python and Node commands from [the verification script](tools/verify.sh). See [testing strategy](docs/18_TESTING_STRATEGY.md) for test scope and further results.
 
 ## Architecture
+
+Assignment 2 extraction is in progress on the development branch. Rooms now
+lives in `services/rooms/domain`; the existing game still runs through the
+monolith. The independent [Rooms API](services/rooms/README.md) uses only
+Rooms tables in a separate development SQLite database. SQL Server and the
+cross-service gameplay workflow are subsequent milestones, not completed work.
 
 The app runs in one process with two core domains: **Rooms** handles players and membership; **Game** handles rounds and scoring. Both use SQLite. Spotify and Demo share an import and admission path. The browser separates presentation, transport and host audio.
 

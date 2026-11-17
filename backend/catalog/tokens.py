@@ -6,7 +6,7 @@ import hmac
 import json
 import secrets
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 
 
 class SongTokens:

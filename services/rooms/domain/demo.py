@@ -5,7 +5,7 @@ import sqlite3
 from pathlib import Path
 from urllib.parse import unquote
 
-from backend.catalog.identity import normalized_words, recording_title
+from shared.recording_identity import normalized_words, recording_title
 
 
 def seed_demo(conn: sqlite3.Connection, path: Path) -> None:

@@ -7,8 +7,8 @@ from fastapi.testclient import TestClient
 
 from backend.app import create_app
 from backend.core.paths import CATALOG_PATH, FRONTEND_DIR
-from backend.rooms.demo import seed_demo
-from backend.rooms.service import RoomsService
+from services.rooms.domain.demo import seed_demo
+from services.rooms.domain.service import RoomsService
 from backend.storage.database import Database
 from tests.support.catalog import write_large_catalog
 from tests.support.demo import demo_config, make_demo_pack, prepared_demo_import

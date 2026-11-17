@@ -3,7 +3,7 @@
 import re
 import unicodedata
 
-from backend.catalog.identity import recording_title
+from shared.recording_identity import recording_title
 
 _RELEASE = (
     r"(?:taylor['’]s\s+version|(?:\d{4}\s+)?remaster(?:ed)?(?:\s+\d{4})?"

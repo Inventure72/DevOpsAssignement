@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 from urllib.parse import urlsplit
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 
 
 class AuthorizationFlow(Protocol):

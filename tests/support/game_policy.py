@@ -7,7 +7,7 @@ from unittest.mock import create_autospec
 
 import pytest
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from backend.game.repository import GameRepository, encode
 from backend.game.service import GameService
 

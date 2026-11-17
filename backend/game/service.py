@@ -4,7 +4,7 @@ import json
 import random
 import uuid
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from backend.game.preparation import RoundPreparations, next_slot, round_identity
 from backend.game.repository import GameRepository, encode
 from backend.game.scoring import score_answer

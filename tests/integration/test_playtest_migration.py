@@ -4,9 +4,9 @@ import sqlite3
 
 import pytest
 
-from backend.core.errors import DomainError
-from backend.rooms import repository
-from backend.rooms.service import RoomsService
+from shared.errors import DomainError
+from services.rooms.domain import repository
+from services.rooms.domain.service import RoomsService
 from backend.storage.database import Database
 from tests.integration.test_music_admission import song
 from tests.support.migrations import legacy_copy

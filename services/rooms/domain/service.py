@@ -5,7 +5,7 @@ import json
 import secrets
 import sqlite3
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 
 from . import demo, music, repository
 

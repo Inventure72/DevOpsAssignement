@@ -2,7 +2,7 @@ from fractions import Fraction
 
 import pytest
 
-from backend.catalog.identity import recording_title
+from shared.recording_identity import recording_title
 from backend.game.scoring import classify_song_guess, half_up, score_answer
 
 

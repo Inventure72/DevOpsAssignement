@@ -3,7 +3,7 @@
 import threading
 from collections import defaultdict, deque
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 
 
 class AdmissionLimits:

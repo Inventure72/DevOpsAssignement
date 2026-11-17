@@ -3,7 +3,7 @@
 import hashlib
 import json
 
-from backend.catalog.identity import normalized_words, recording_title
+from shared.recording_identity import normalized_words, recording_title
 
 
 # Bump when recording verification rules change.

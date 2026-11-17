@@ -1,0 +1,965 @@
+{
+  "components": {
+    "schemas": {
+      "Admission": {
+        "additionalProperties": false,
+        "properties": {
+          "character_id": {
+            "default": "coral",
+            "title": "Character Id",
+            "type": "string"
+          },
+          "imported": {
+            "$ref": "#/components/schemas/ListeningImport"
+          },
+          "mode": {
+            "default": "demo",
+            "enum": [
+              "demo",
+              "normal"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "nickname": {
+            "maxLength": 24,
+            "minLength": 1,
+            "title": "Nickname",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nickname",
+          "imported"
+        ],
+        "title": "Admission",
+        "type": "object"
+      },
+      "AdmissionResult": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "player_id": {
+            "title": "Player Id",
+            "type": "string"
+          },
+          "room_id": {
+            "title": "Room Id",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "room_id",
+          "code",
+          "player_id",
+          "token"
+        ],
+        "title": "AdmissionResult",
+        "type": "object"
+      },
+      "Artist": {
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Aliases",
+            "type": "array"
+          },
+          "artist_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Artist Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "artist_key",
+          "name"
+        ],
+        "title": "Artist",
+        "type": "object"
+      },
+      "FrozenPlayer": {
+        "additionalProperties": false,
+        "properties": {
+          "character_id": {
+            "title": "Character Id",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "is_host": {
+            "title": "Is Host",
+            "type": "boolean"
+          },
+          "last_seen_at_ms": {
+            "title": "Last Seen At Ms",
+            "type": "integer"
+          },
+          "music_status": {
+            "title": "Music Status",
+            "type": "string"
+          },
+          "nickname": {
+            "title": "Nickname",
+            "type": "string"
+          },
+          "player_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Player Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "player_id",
+          "nickname",
+          "character_id",
+          "is_host",
+          "music_status",
+          "last_seen_at_ms"
+        ],
+        "title": "FrozenPlayer",
+        "type": "object"
+      },
+      "FrozenSong": {
+        "additionalProperties": false,
+        "properties": {
+          "artist": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Artist",
+            "type": "string"
+          },
+          "artists": {
+            "items": {
+              "$ref": "#/components/schemas/Artist"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Artists",
+            "type": "array"
+          },
+          "artwork_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artwork Url"
+          },
+          "isrc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isrc"
+          },
+          "listeners": {
+            "items": {
+              "$ref": "#/components/schemas/Listener"
+            },
+            "maxItems": 10,
+            "title": "Listeners",
+            "type": "array"
+          },
+          "pool_kind": {
+            "enum": [
+              "personal",
+              "decoy"
+            ],
+            "title": "Pool Kind",
+            "type": "string"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Url"
+          },
+          "song_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Song Key",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "song_key",
+          "title",
+          "artist",
+          "artists",
+          "pool_kind",
+          "listeners"
+        ],
+        "title": "FrozenSong",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Listener": {
+        "additionalProperties": false,
+        "properties": {
+          "familiarity": {
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "title": "Familiarity",
+            "type": "string"
+          },
+          "player_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Player Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "player_id",
+          "familiarity"
+        ],
+        "title": "Listener",
+        "type": "object"
+      },
+      "ListeningImport": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "decoys": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Song"
+            },
+            "maxItems": 1000,
+            "title": "Decoys",
+            "type": "array"
+          },
+          "evidence": {
+            "enum": [
+              "personal",
+              "simulated"
+            ],
+            "title": "Evidence",
+            "type": "string"
+          },
+          "observed_songs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ListeningSong"
+            },
+            "maxItems": 1000,
+            "title": "Observed Songs",
+            "type": "array"
+          },
+          "provider": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Provider",
+            "type": "string"
+          },
+          "songs": {
+            "items": {
+              "$ref": "#/components/schemas/ListeningSong"
+            },
+            "maxItems": 1000,
+            "title": "Songs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "provider",
+          "evidence",
+          "songs"
+        ],
+        "title": "ListeningImport",
+        "type": "object"
+      },
+      "ListeningSong": {
+        "additionalProperties": false,
+        "properties": {
+          "artist": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Artist",
+            "type": "string"
+          },
+          "artists": {
+            "items": {
+              "$ref": "#/components/schemas/Artist"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Artists",
+            "type": "array"
+          },
+          "artwork_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artwork Url"
+          },
+          "familiarity": {
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "title": "Familiarity",
+            "type": "string"
+          },
+          "isrc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isrc"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Url"
+          },
+          "song_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Song Key",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "song_key",
+          "title",
+          "artist",
+          "artists",
+          "familiarity"
+        ],
+        "title": "ListeningSong",
+        "type": "object"
+      },
+      "RoomSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "host_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Host Id",
+            "type": "string"
+          },
+          "maximum_players": {
+            "maximum": 10.0,
+            "minimum": 2.0,
+            "title": "Maximum Players",
+            "type": "integer"
+          },
+          "minimum_players": {
+            "maximum": 10.0,
+            "minimum": 2.0,
+            "title": "Minimum Players",
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "demo",
+              "normal"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenPlayer"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Players",
+            "type": "array"
+          },
+          "playtest": {
+            "title": "Playtest",
+            "type": "boolean"
+          },
+          "revision": {
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "room_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Room Id",
+            "type": "string"
+          },
+          "songs": {
+            "items": {
+              "$ref": "#/components/schemas/FrozenSong"
+            },
+            "maxItems": 1000,
+            "title": "Songs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "room_id",
+          "revision",
+          "mode",
+          "minimum_players",
+          "maximum_players",
+          "playtest",
+          "host_id",
+          "players",
+          "songs"
+        ],
+        "title": "RoomSnapshot",
+        "type": "object"
+      },
+      "Song": {
+        "additionalProperties": false,
+        "properties": {
+          "artist": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Artist",
+            "type": "string"
+          },
+          "artists": {
+            "items": {
+              "$ref": "#/components/schemas/Artist"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Artists",
+            "type": "array"
+          },
+          "artwork_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artwork Url"
+          },
+          "isrc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isrc"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Url"
+          },
+          "song_key": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Song Key",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "song_key",
+          "title",
+          "artist",
+          "artists"
+        ],
+        "title": "Song",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "title": "Who's On Repeat: Rooms",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/room-codes/{code}": {
+      "get": {
+        "operationId": "resolve_api_room_codes__code__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Resolve Api Room Codes  Code  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve"
+      }
+    },
+    "/api/rooms/{room_id}/heartbeat": {
+      "post": {
+        "operationId": "heartbeat_api_rooms__room_id__heartbeat_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "room_id",
+            "required": true,
+            "schema": {
+              "title": "Room Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Heartbeat Api Rooms  Room Id  Heartbeat Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Heartbeat"
+      }
+    },
+    "/api/rooms/{room_id}/lobby": {
+      "get": {
+        "operationId": "lobby_api_rooms__room_id__lobby_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "room_id",
+            "required": true,
+            "schema": {
+              "title": "Room Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Lobby Api Rooms  Room Id  Lobby Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Lobby"
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "503": {
+            "description": "Own database unavailable"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/internal/rooms": {
+      "post": {
+        "operationId": "create_internal_rooms_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-service-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Service-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Admission"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdmissionResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create"
+      }
+    },
+    "/internal/rooms/{room_id}/join": {
+      "post": {
+        "operationId": "join_internal_rooms__room_id__join_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "room_id",
+            "required": true,
+            "schema": {
+              "title": "Room Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-service-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Service-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Admission"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdmissionResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join"
+      }
+    },
+    "/internal/rooms/{room_id}/snapshot": {
+      "get": {
+        "operationId": "snapshot_internal_rooms__room_id__snapshot_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "room_id",
+            "required": true,
+            "schema": {
+              "title": "Room Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-service-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Service-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomSnapshot"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Snapshot"
+      }
+    }
+  }
+}

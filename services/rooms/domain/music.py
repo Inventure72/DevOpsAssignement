@@ -5,8 +5,8 @@ import json
 import re
 import secrets
 
-from backend.catalog.identity import normalized_words, recording_title
-from backend.core.errors import DomainError
+from shared.recording_identity import normalized_words, recording_title
+from shared.errors import DomainError
 
 
 def identity(song):

@@ -5,7 +5,7 @@ import math
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 
 
 class MusicProviderError(DomainError):

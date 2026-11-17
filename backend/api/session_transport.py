@@ -2,7 +2,7 @@
 
 from urllib.parse import urlsplit
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 
 
 def https_game_url(config):

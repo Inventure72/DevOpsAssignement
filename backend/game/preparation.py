@@ -3,7 +3,7 @@
 import json
 import uuid
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 
 ACKNOWLEDGEMENT_MAX_AGE_MS = 5000
 

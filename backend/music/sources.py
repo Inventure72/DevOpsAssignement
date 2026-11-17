@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Literal, Protocol
 from urllib.parse import unquote
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 
 
 @dataclass(frozen=True)
