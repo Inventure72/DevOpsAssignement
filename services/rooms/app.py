@@ -32,7 +32,10 @@ class AdmissionResult(Body):
 def create_app(config=None, *, clock=None, playtest=False):
     config = config or ServiceConfig.from_env("rooms")
     app, db, internal = service_app(
-        "Rooms", config, Path(__file__).parent / "development"
+        "Rooms",
+        config,
+        Path(__file__).parent / "development",
+        required_tables=("rooms", "players", "songs", "player_songs", "demo_catalog"),
     )
     rooms = RoomsService(playtest=playtest)
     clock = clock or (lambda: time.time_ns() // 1_000_000)

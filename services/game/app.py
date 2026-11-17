@@ -70,7 +70,17 @@ class Answer(Actor):
 def create_app(config=None, *, clock=None, game=None):
     config = config or ServiceConfig.from_env("game")
     app, db, internal = service_app(
-        "Game", config, Path(__file__).parent / "development"
+        "Game",
+        config,
+        Path(__file__).parent / "development",
+        required_tables=(
+            "games",
+            "game_players",
+            "rounds",
+            "answers",
+            "game_commands",
+            "game_round_preparations",
+        ),
     )
     game = game or GameService()
     clock = clock or (lambda: time.time_ns() // 1_000_000)

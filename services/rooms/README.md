@@ -12,8 +12,10 @@ Default port: 8001. Set `PORT` to override. The app creates only Rooms tables in
 use another development database. This is a temporary SQLite runtime; the planned
 SQL Server port is not implemented yet. It never opens the monolith database.
 
-`GET /health` checks an actual write/read/delete in this database and reports
-`GIT_SHA` (default `development`). It returns 503 if its own database is unavailable.
+`GET /health` reads every required Rooms table, checks an actual write/read/delete
+in this database and reports `GIT_SHA` (default `development`). It returns 503 if
+its own database or domain schema is unavailable. Startup rejects absent migration
+files and an incomplete domain schema.
 
 Set `SERVICE_TOKEN` through the process environment to enable trusted internal
 admission and snapshot routes. There is no default credential; these routes return

@@ -12,7 +12,9 @@ Default port: 8002; override with `PORT`. The app initializes only Game tables i
 path. SQL Server and the HTTP start/reservation workflow are pending milestones.
 The app does not import Rooms or the monolith, or connect to their databases.
 
-`GET /health` verifies its own database can read/write and reports `GIT_SHA`.
+`GET /health` verifies reads from every required Game table, checks its own
+database can write/read/delete and reports `GIT_SHA`. Missing domain tables return
+503; startup rejects absent migration files or an incomplete domain schema.
 All gameplay routes are under `/internal/` and require `X-Service-Token`, matched
 against the process's `SERVICE_TOKEN` environment variable. No token is provided
 by default; unconfigured internal endpoints return 503.

@@ -91,3 +91,12 @@ The clean-source check found that existing launcher tests require a project-loca
 `.venv`; the regression CI job now creates it before installation. The corrected
 clean-source verification passed without weakening those tests. GitHub Actions
 execution remains unverified until the branch is pushed.
+
+Review follow-up (2026-11-17): a temporary-database reproduction exposed a false
+healthy response after removing a required domain table, and startup accepted an
+empty migration directory. Startup now requires migration files and an intact
+own-domain schema; health reads every required domain table before its write/read/
+delete probe. Thirteen new regression cases cover both services' tables and
+missing/empty migration directories. Full public-source verification after the
+fix passed **323 unit, 269 integration/API/process and 214 frontend tests**, with
+unchanged **94.79%** core coverage. Source lint and OpenAPI checks also passed.

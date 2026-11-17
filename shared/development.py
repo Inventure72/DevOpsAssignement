@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import re
 import secrets
 import sqlite3
 from contextlib import asynccontextmanager, contextmanager
@@ -31,11 +32,17 @@ class ServiceConfig:
 
 
 class DevelopmentDatabase:
-    def __init__(self, url, migrations):
+    def __init__(self, url, migrations, *, required_tables):
         if not url.startswith("sqlite:///") or not url.removeprefix("sqlite:///"):
             raise ValueError("Extraction runtime requires a sqlite:/// DATABASE_URL")
         self.path = Path(url.removeprefix("sqlite:///"))
         self.migrations = Path(migrations)
+        self.required_tables = tuple(required_tables)
+        if not self.required_tables or any(
+            not re.fullmatch(r"[a-z][a-z0-9_]*", table)
+            for table in self.required_tables
+        ):
+            raise ValueError("Explicit domain table names are required")
 
     @contextmanager
     def read(self):
@@ -59,6 +66,9 @@ class DevelopmentDatabase:
                 raise
 
     def initialize(self):
+        migrations = sorted(self.migrations.glob("*.sql"))
+        if not migrations:
+            raise RuntimeError("Development migration files are missing")
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.read() as conn:
             conn.execute("PRAGMA journal_mode=WAL")
@@ -69,7 +79,7 @@ class DevelopmentDatabase:
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS health_probe (id TEXT PRIMARY KEY)"
             )
-            for migration in sorted(self.migrations.glob("*.sql")):
+            for migration in migrations:
                 sql = migration.read_text()
                 digest = hashlib.sha256(sql.encode()).hexdigest()
                 prior = conn.execute(
@@ -90,9 +100,13 @@ class DevelopmentDatabase:
                 except BaseException:
                     conn.rollback()
                     raise
+        # Migration receipts alone cannot prove that the domain schema is intact.
+        self.check()
 
     def check(self):
         with self.transaction() as conn:
+            for table in self.required_tables:
+                conn.execute(f'SELECT 1 FROM "{table}" LIMIT 1').fetchone()
             identifier = secrets.token_hex(16)
             conn.execute("INSERT INTO health_probe VALUES (?)", (identifier,))
             conn.execute(
@@ -101,8 +115,10 @@ class DevelopmentDatabase:
             conn.execute("DELETE FROM health_probe WHERE id=?", (identifier,))
 
 
-def service_app(name, config, migrations):
-    db = DevelopmentDatabase(config.database_url, migrations)
+def service_app(name, config, migrations, *, required_tables):
+    db = DevelopmentDatabase(
+        config.database_url, migrations, required_tables=required_tables
+    )
 
     @asynccontextmanager
     async def lifespan(app):
