@@ -74,3 +74,6 @@ poc/
 
 
 tmp/
+
+# Local AI usage draft; the author reviews and commits it for final submission.
+/AI_USAGE.md

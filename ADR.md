@@ -1,6 +1,7 @@
 # Architecture Decision Records
 
-Five decisions, updated on 2026-10-04. Original decision dates are retained.
+Assignment 1 decisions 1–5 retain their original dates and text. Assignment 2
+decisions begin at 6; intended changes are distinguished from implemented work.
 First commits: ADR-1 `7fd5e42` (Sep 27), ADR-2 `e5b091b` (Sep 29), ADR-3 `acc5000` (Sep 30), ADR-4/5 `a55de5a` (Oct 1).
 
 ## 1. Backend framework: Python + FastAPI
@@ -25,7 +26,7 @@ Implementation: [app](backend/app.py), [routes](backend/api/routes.py), [depende
 
 Date: 2026-09-29
 
-Status: Decided
+Status: Superseded by [6](#6-extract-rooms-and-game-as-separate-services)
 
 Context: Membership and music imports change for different reasons than rounds and scoring. The assignment requires two SQLite-backed domains with a future separation point.
 
@@ -84,3 +85,48 @@ Alternatives considered: Synchronized playback adds timing and recovery work. Au
 Consequences: Everyone guesses through their own browser and hears a shared speaker. Demo uses simulated libraries; Real depends on configured provider access.
 
 Evolution: the four-track Oct 1 prototype became a pinned 100-song Demo pack on Oct 4. Spotify personal imports are implemented; Apple provides catalog/previews, with personal listening deferred. The launcher prepares Demo music before starting; bare server readiness works independently of the pack. See [setup](README.md#run) and the [music connection contract](docs/07_API_AND_RUNTIME.md#12-real-music-connection-runtime).
+
+## 6. Extract Rooms and Game as separate services
+
+Date: 2026-11-17
+
+Status: Decided; implementation is incremental
+
+Context: Assignment 2 requires two independently deployed Python services with
+separate databases and HTTP communication. ADR-2 correctly separated changing
+membership/listening data from frozen gameplay, but its shared coordinator still
+uses one transaction for Start, presence and completion.
+
+Decision: Keep the Rooms/Game seam. Move the existing domain implementations into
+`services/rooms/domain` and `services/game/domain`, with independent FastAPI
+composition roots and pinned manifests. Rooms owns membership, music admission,
+public catalog/search and media. Game owns frozen rosters/song facts, plans,
+rounds, answers, results and audio leases. Share only pure error/recording-value
+helpers and small runtime infrastructure, never another domain's repository.
+
+Rooms will coordinate Start server-side: persist the accepted operation and lock
+admission, send its frozen snapshot to Game with a stable request identity, then
+reconcile completion. A lost response must leave an operation recoverable by that
+identity; it must not reopen admission blindly. Calls have bounded timeouts, and
+dependency failure returns a clear retryable response while each service keeps
+serving its own domain. Game must not read Rooms tables. The UI will call both
+services using configured URLs. Internal snapshot/import endpoints require
+service authentication, and snapshot export additionally requires the host's
+room credential. Public views never expose private listening evidence.
+
+Alternatives considered: Moving the seam to catalog/game would mix membership
+with frozen scoring and abandon ADR-2. A third gateway, broker or distributed
+transaction adds infrastructure outside the assignment. A route-filtered copy
+of the monolith would still initialize both domains and would not establish
+independent ownership.
+
+Consequences: The frozen snapshot contract survives. The shared transaction and
+cross-domain foreign keys do not; durable command identities and reconciliation
+must replace their guarantees. Day-one applications use separate development
+SQLite schemas and trusted internal APIs. The existing monolith remains the
+playable compatibility entry point until SQL Server and HTTP lifecycle integration
+are complete. These applications are extraction checkpoints, not the finished
+Azure deployment. SQL Server transfer/recovery details belong in ADR-7.
+
+Implementation contract: [service split](docs/20_SERVICE_SPLIT.md). Schedule and
+acceptance evidence: [Assignment 2 plan](docs/19_ASSIGNMENT_2_PLAN.md).
