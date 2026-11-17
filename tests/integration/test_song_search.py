@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from backend.catalog.search import SongSearch
 from tests.support.demo import demo_config
 from shared.errors import DomainError
-from backend.game.scoring import half_up
+from services.game.domain.scoring import half_up
 from tests.integration.test_api import session as session, start
 from tests.integration.test_music_admission import admit, create_normal_app
 from tests.unit.test_song_catalog import SONG

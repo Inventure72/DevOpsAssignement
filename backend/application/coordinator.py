@@ -7,8 +7,8 @@ from backend.application.audio_leases import AudioLeases
 from backend.application.launch_mode import LaunchMode
 from backend.application.room_locks import RoomLocks
 from shared.errors import DomainError
-from backend.game.service import GameService
-from backend.game.views import audio_manifest, game_view
+from services.game.domain.service import GameService
+from services.game.domain.views import audio_manifest, game_view
 from backend.music.importer import MusicImporter
 from backend.music.sources import DemoListeningAdapter, LocalPreviewResolver
 from services.rooms.domain.demo import catalog_snapshot, seed_demo, validate_pack_assets

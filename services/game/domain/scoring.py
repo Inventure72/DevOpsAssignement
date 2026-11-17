@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 from fractions import Fraction
 from typing import Any
 
-from backend.game.song_titles import guess_title
+from services.game.domain.song_titles import guess_title
 
 
 def half_up(value: Fraction) -> int:

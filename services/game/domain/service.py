@@ -5,10 +5,14 @@ import random
 import uuid
 
 from shared.errors import DomainError
-from backend.game.preparation import RoundPreparations, next_slot, round_identity
-from backend.game.repository import GameRepository, encode
-from backend.game.scoring import score_answer
-from backend.game.selection import prepare_plan, skip_limit_exceeded
+from services.game.domain.preparation import (
+    RoundPreparations,
+    next_slot,
+    round_identity,
+)
+from services.game.domain.repository import GameRepository, encode
+from services.game.domain.scoring import score_answer
+from services.game.domain.selection import prepare_plan, skip_limit_exceeded
 
 
 class GameService:
@@ -148,11 +152,14 @@ class GameService:
             )
         if any(
             sum(
-                any(l["player_id"] == p["id"] for l in s["listeners"])
-                for s in snapshot["songs"]
+                any(
+                    listener["player_id"] == player["id"]
+                    for listener in song["listeners"]
+                )
+                for song in snapshot["songs"]
             )
             < 10
-            for p in snapshot["players"]
+            for player in snapshot["players"]
         ):
             raise DomainError(
                 "insufficient_songs", "Every player needs at least ten songs."

@@ -91,9 +91,9 @@ With the project Python environment activated, measure core unit coverage:
 
 ```bash
 python -m pytest -q tests/unit \
-  --cov=services.rooms.domain.service --cov=backend.game.service \
-  --cov=backend.game.scoring --cov=backend.game.selection \
-  --cov=backend.game.preparation --cov=backend.game.song_titles \
+  --cov=services.rooms.domain.service --cov=services.game.domain.service \
+  --cov=services.game.domain.scoring --cov=services.game.domain.selection \
+  --cov=services.game.domain.preparation --cov=services.game.domain.song_titles \
   --cov-report=term-missing --cov-fail-under=90
 ```
 
@@ -105,11 +105,13 @@ Tests use temporary data and offline provider substitutes; no keys or music down
 
 ## Architecture
 
-Assignment 2 extraction is in progress on the development branch. Rooms now
-lives in `services/rooms/domain`; the existing game still runs through the
-monolith. The independent [Rooms API](services/rooms/README.md) uses only
-Rooms tables in a separate development SQLite database. SQL Server and the
-cross-service gameplay workflow are subsequent milestones, not completed work.
+Assignment 2 extraction is in progress on the development branch. Rooms and
+Game now live in `services/rooms/domain` and `services/game/domain`. Independent
+[Rooms](services/rooms/README.md) and [Game](services/game/README.md) APIs use
+separate development SQLite databases and own only their domain tables. The
+existing browser game still runs through the monolith using the same domain
+implementations. SQL Server and cross-service gameplay are subsequent milestones,
+not completed work.
 
 The app runs in one process with two core domains: **Rooms** handles players and membership; **Game** handles rounds and scoring. Both use SQLite. Spotify and Demo share an import and admission path. The browser separates presentation, transport and host audio.
 

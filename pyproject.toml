@@ -3,7 +3,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.coverage.run]
-source = ["services.rooms.domain", "backend.game"]
+source = ["services.rooms.domain", "services.game.domain"]
 
 [tool.ruff]
 line-length = 88

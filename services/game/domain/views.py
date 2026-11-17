@@ -2,7 +2,7 @@
 
 import json
 
-from backend.game.scoring import classify_song_guess
+from services.game.domain.scoring import classify_song_guess
 
 GAME_FIELDS = (
     "id",

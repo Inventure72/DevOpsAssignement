@@ -1,0 +1,1 @@
+"""Game extraction integration tests."""

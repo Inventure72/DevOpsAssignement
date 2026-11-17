@@ -15,16 +15,16 @@ Path lookup for the modular monolith. [Architecture](05_ARCHITECTURE.md) explain
 | `backend/application/room_locks.py` | Holder/waiter-scoped `RoomLocks`; idle registry entries are released safely |
 | `backend/application/audio_leases.py` | One active host-tab lease, renewal and explicit takeover |
 | `backend/application/music_admission.py` | Atomic bridge from verified import receipt into Rooms admission |
-| `backend/rooms/service.py` | Admission, identity, capacity, presence, membership and frozen snapshot export |
-| `backend/rooms/repository.py` | Rooms-owned SQL; callers own transaction boundaries |
-| `backend/rooms/demo.py` | Validated seed replacement and detached catalog pool snapshots/public Demo fixtures |
-| `backend/rooms/music.py` | Validate evidence/mode, persist checked imports and store observations with unchecked previews stripped |
-| `backend/game/service.py` | Game policy, answer finality, readiness, recovery, phase transitions and completion |
-| `backend/game/preparation.py` | Separate upcoming candidate, renewable check-ins, freshness and lease validation at promotion |
-| `backend/game/selection.py` | Pure bounded full-game candidate/reserve planning |
-| `backend/game/scoring.py`, `song_titles.py` | Exact server-timed scoring, credited-artist matching and release-label guess normalization |
-| `backend/game/repository.py` | Game-owned SQL, durable command receipts, score updates and rankings |
-| `backend/game/views.py` | Public projections, caller-owned answer visibility and private host audio manifest |
+| `services/rooms/domain/service.py` | Admission, identity, capacity, presence, membership and frozen snapshot export |
+| `services/rooms/domain/repository.py` | Rooms-owned SQL; callers own transaction boundaries |
+| `services/rooms/domain/demo.py` | Validated seed replacement and detached catalog pool snapshots/public Demo fixtures |
+| `services/rooms/domain/music.py` | Validate evidence/mode, persist checked imports and store observations with unchecked previews stripped |
+| `services/game/domain/service.py` | Game policy, answer finality, readiness, recovery, phase transitions and completion |
+| `services/game/domain/preparation.py` | Separate upcoming candidate, renewable check-ins, freshness and lease validation at promotion |
+| `services/game/domain/selection.py` | Pure bounded full-game candidate/reserve planning |
+| `services/game/domain/scoring.py`, `song_titles.py` | Exact server-timed scoring, credited-artist matching and release-label guess normalization |
+| `services/game/domain/repository.py` | Game-owned SQL, durable command receipts, score updates and rankings |
+| `services/game/domain/views.py` | Public projections, caller-owned answer visibility and private host audio manifest |
 | `backend/storage/database.py` | SQLite connection policy and application migrations 001–006 |
 
 ## Public metadata and music adapters
