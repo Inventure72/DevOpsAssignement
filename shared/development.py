@@ -6,7 +6,7 @@ import re
 import secrets
 import sqlite3
 from contextlib import asynccontextmanager, contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from fastapi import FastAPI, Header
@@ -18,20 +18,27 @@ from shared.errors import DomainError
 
 @dataclass(frozen=True)
 class ServiceConfig:
-    database_url: str
-    service_token: str = ""
+    database_url: str = field(repr=False)
+    service_token: str = field(default="", repr=False)
     version: str = "development"
 
     @classmethod
-    def from_env(cls, name):
+    def from_env(cls, name, *, default_database_url=None):
         return cls(
-            os.environ.get("DATABASE_URL", f"sqlite:///data/{name}.sqlite3"),
+            os.environ.get(
+                "DATABASE_URL",
+                f"sqlite:///data/{name}.sqlite3"
+                if default_database_url is None
+                else default_database_url,
+            ),
             os.environ.get("SERVICE_TOKEN", ""),
             os.environ.get("GIT_SHA", "development"),
         )
 
 
 class DevelopmentDatabase:
+    errors = (sqlite3.Error, OSError)
+
     def __init__(self, url, migrations, *, required_tables):
         if not url.startswith("sqlite:///") or not url.removeprefix("sqlite:///"):
             raise ValueError("Extraction runtime requires a sqlite:/// DATABASE_URL")
@@ -115,9 +122,13 @@ class DevelopmentDatabase:
             conn.execute("DELETE FROM health_probe WHERE id=?", (identifier,))
 
 
-def service_app(name, config, migrations, *, required_tables):
-    db = DevelopmentDatabase(
-        config.database_url, migrations, required_tables=required_tables
+def service_app(name, config, migrations, *, required_tables, database=None):
+    db = (
+        database
+        if database is not None
+        else DevelopmentDatabase(
+            config.database_url, migrations, required_tables=required_tables
+        )
     )
 
     @asynccontextmanager
@@ -149,7 +160,7 @@ def service_app(name, config, migrations, *, required_tables):
     def health() -> Health:
         try:
             db.check()
-        except (sqlite3.Error, OSError):
+        except db.errors:
             return JSONResponse(
                 {
                     "status": "unavailable",

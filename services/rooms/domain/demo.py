@@ -8,7 +8,7 @@ from urllib.parse import unquote
 from shared.recording_identity import normalized_words, recording_title
 
 
-def seed_demo(conn: sqlite3.Connection, path: Path) -> None:
+def seed_demo(conn, path: Path) -> None:
     """Replace the global catalog without changing room copies or frozen games."""
     entries = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(entries, list):
@@ -19,6 +19,8 @@ def seed_demo(conn: sqlite3.Connection, path: Path) -> None:
     for entry in entries:
         if not isinstance(entry, dict):
             raise ValueError("Invalid demo catalog entry")
+        if any(isinstance(value, str) and "\x00" in value for value in entry.values()):
+            raise ValueError("Demo song metadata contains a null character")
         entry_id = entry.get("id")
         credits = entry.get("artists")
         if not isinstance(entry_id, str) or not entry_id or entry_id in ids:
@@ -147,18 +149,18 @@ def validate_pack_assets(pack: Path) -> int:
     return len(entries)
 
 
-def preview_sample(conn: sqlite3.Connection) -> dict:
+def preview_sample(conn) -> dict:
     """Expose one shared catalog sample without player listening evidence."""
     row = conn.execute(
         "SELECT title,artist,preview_url,artwork_url FROM demo_catalog "
-        "WHERE pool_kind='personal' ORDER BY id LIMIT 1"
+        "WHERE pool_kind='personal' ORDER BY id"
     ).fetchone()
     if row is None:
         raise RuntimeError("Demo catalog is not initialized")
     return dict(row)
 
 
-def catalog_snapshot(conn: sqlite3.Connection) -> dict[str, list[dict]]:
+def catalog_snapshot(conn) -> dict[str, list[dict]]:
     """Copy shared catalog facts; preparation runs after this short read closes."""
     pools = {"personal": [], "decoy": []}
     for row in conn.execute("SELECT * FROM demo_catalog ORDER BY id"):

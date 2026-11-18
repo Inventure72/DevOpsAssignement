@@ -100,3 +100,23 @@ delete probe. Thirteen new regression cases cover both services' tables and
 missing/empty migration directories. Full public-source verification after the
 fix passed **323 unit, 269 integration/API/process and 214 frontend tests**, with
 unchanged **94.79%** core coverage. Source lint and OpenAPI checks also passed.
+
+## Rooms SQL Server milestone — 2026-11-18
+
+The standalone Rooms API now uses SQL Server when given a `mssql+pymssql`
+DATABASE_URL; startup requires an explicit URL. An explicit SQLite URL remains
+a compatibility/test path, and the playable monolith is unchanged. Game storage,
+existing SQLite data transfer, catalog-search/provider orchestration and the
+cross-service lifecycle remain separate integration milestones.
+
+Rooms migrations and their checksummed receipts commit atomically, with a session
+lock around initialization. Demo seeding is transactional and preserves room song
+copies. Runtime writes use a transaction-owned lock across independent connections.
+The local bootstrap grants the service login roles only in its own database; the
+service does not use the administrator connection. No Azure resource was changed.
+
+SQL Server's multiple-cascade-path restriction requires one membership FK to use
+NO ACTION; room deletion explicitly removes memberships inside its transaction.
+Exact identity checks and indexed SHA-256 digests avoid trailing-space comparison
+and index-width problems while keeping complete original recording keys. Health
+checks retain the missing-schema and own-database read/write guarantees.

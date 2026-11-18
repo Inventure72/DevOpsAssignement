@@ -3,7 +3,6 @@
 import hashlib
 import json
 import secrets
-import sqlite3
 
 from shared.errors import DomainError
 
@@ -48,7 +47,7 @@ class RoomsService:
         self.playtest = playtest
         self.minimum_players = 2 if playtest else 3
 
-    def room(self, conn: sqlite3.Connection, room_id: str, now_ms: int) -> dict:
+    def room(self, conn, room_id: str, now_ms: int) -> dict:
         room = self.repo.room(conn, room_id)
         if room is None:
             raise DomainError("room_not_found", "Room not found", 404)
@@ -61,7 +60,7 @@ class RoomsService:
             raise DomainError("room_expired", "This room has expired", 410)
         return room
 
-    def resolve_code(self, conn: sqlite3.Connection, code: str, now_ms: int) -> dict:
+    def resolve_code(self, conn, code: str, now_ms: int) -> dict:
         if not isinstance(code, str):
             raise DomainError("room_not_found", "Room not found", 404)
         row = self.repo.room_by_code(conn, code.strip().upper())
@@ -79,7 +78,7 @@ class RoomsService:
 
     def create(
         self,
-        conn: sqlite3.Connection,
+        conn,
         nickname: str,
         character_id: str,
         mode: str,
@@ -123,7 +122,7 @@ class RoomsService:
 
     def join(
         self,
-        conn: sqlite3.Connection,
+        conn,
         room_id: str,
         nickname: str,
         character_id: str,
@@ -236,9 +235,7 @@ class RoomsService:
             "token": token,
         }
 
-    def authenticate(
-        self, conn: sqlite3.Connection, room_id: str, token: str, now_ms: int
-    ) -> dict:
+    def authenticate(self, conn, room_id: str, token: str, now_ms: int) -> dict:
         self.room(conn, room_id, now_ms)
         if not isinstance(token, str) or not token or len(token) > 256:
             raise DomainError("unauthorized", "A valid room session is required", 401)
@@ -247,9 +244,7 @@ class RoomsService:
             raise DomainError("unauthorized", "A valid room session is required", 401)
         return player
 
-    def heartbeat(
-        self, conn: sqlite3.Connection, room_id: str, player_id: str, now_ms: int
-    ) -> dict:
+    def heartbeat(self, conn, room_id: str, player_id: str, now_ms: int) -> dict:
         room = self.room(conn, room_id, now_ms)
         player = self._player(conn, room_id, player_id)
         if (
@@ -265,7 +260,7 @@ class RoomsService:
 
     def update_player(
         self,
-        conn: sqlite3.Connection,
+        conn,
         room_id: str,
         player_id: str,
         nickname: str,
@@ -286,9 +281,7 @@ class RoomsService:
         self.repo.bump_revision(conn, room_id)
         return self.repo.player(conn, room_id, player_id)
 
-    def remove_player(
-        self, conn: sqlite3.Connection, room_id: str, player_id: str, now_ms: int
-    ) -> None:
+    def remove_player(self, conn, room_id: str, player_id: str, now_ms: int) -> None:
         self._require_lobby(self.room(conn, room_id, now_ms))
         self._player(conn, room_id, player_id)
         self.repo.remove_player(conn, room_id, player_id)
@@ -296,7 +289,7 @@ class RoomsService:
         self.repo.prune_unreferenced_songs(conn, room_id)
         self.repo.bump_revision(conn, room_id)
 
-    def lobby(self, conn: sqlite3.Connection, room_id: str, now_ms: int) -> dict:
+    def lobby(self, conn, room_id: str, now_ms: int) -> dict:
         room = self.room(conn, room_id, now_ms)
         counts = self.repo.song_counts(conn, room_id)
         players = [
@@ -329,7 +322,7 @@ class RoomsService:
             + RETENTION_MS,
         }
 
-    def snapshot(self, conn: sqlite3.Connection, room_id: str) -> dict:
+    def snapshot(self, conn, room_id: str) -> dict:
         room = self.repo.room(conn, room_id)
         if room is None:
             raise DomainError("room_not_found", "Room not found", 404)
@@ -377,7 +370,7 @@ class RoomsService:
             "songs": songs,
         }
 
-    def set_state(self, conn: sqlite3.Connection, room_id: str, state: str) -> None:
+    def set_state(self, conn, room_id: str, state: str) -> None:
         if state not in {"lobby", "playing"}:
             raise ValueError("Invalid room state")
         self.repo.set_state(conn, room_id, state)
@@ -389,9 +382,7 @@ class RoomsService:
             if 0 <= now_ms - player["last_seen_at_ms"] < CONNECTED_MS
         }
 
-    def host_presence(
-        self, conn: sqlite3.Connection, room_id: str, now_ms: int
-    ) -> dict:
+    def host_presence(self, conn, room_id: str, now_ms: int) -> dict:
         self.room(conn, room_id, now_ms)
         row = self.repo.host(conn, room_id)
         if row is None:
@@ -402,16 +393,16 @@ class RoomsService:
             "expires_at_ms": row["last_seen_at_ms"] + HOST_GRACE_MS,
         }
 
-    def bump_revision(self, conn: sqlite3.Connection, room_id: str) -> None:
+    def bump_revision(self, conn, room_id: str) -> None:
         self.repo.bump_revision(conn, room_id)
 
-    def complete(self, conn: sqlite3.Connection, room_id: str, now_ms: int) -> None:
+    def complete(self, conn, room_id: str, now_ms: int) -> None:
         self.repo.complete_room(conn, room_id, now_ms)
 
-    def expired_ids(self, conn: sqlite3.Connection, now_ms: int) -> list[str]:
+    def expired_ids(self, conn, now_ms: int) -> list[str]:
         return self.repo.expired_room_ids(conn, now_ms, RETENTION_MS)
 
-    def delete(self, conn: sqlite3.Connection, room_id: str) -> None:
+    def delete(self, conn, room_id: str) -> None:
         self.repo.delete_room(conn, room_id)
 
     @staticmethod

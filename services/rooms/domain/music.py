@@ -22,9 +22,10 @@ def store(conn, room_id, player_id, songs, *, decoys=False):
     for song in songs:
         key = identity(song)
         existing = conn.execute(
-            "SELECT id,title,artists_json FROM songs WHERE room_id=? AND identity_key=?",
+            "SELECT id,title,artists_json,identity_key FROM songs WHERE room_id=? AND identity_key=?",
             (room_id, key),
-        ).fetchone()
+        ).fetchall()
+        existing = next((row for row in existing if row["identity_key"] == key), None)
         if existing and not _compatible(existing, song):
             # Provider ISRC metadata can be mislabeled. Keep conflicting versions
             # separate rather than attaching one recording's owners to another.
@@ -35,9 +36,12 @@ def store(conn, room_id, player_id, songs, *, decoys=False):
             )
             key += ":variant:" + hashlib.sha256(variant.encode()).hexdigest()[:16]
             existing = conn.execute(
-                "SELECT id,title,artists_json FROM songs WHERE room_id=? AND identity_key=?",
+                "SELECT id,title,artists_json,identity_key FROM songs WHERE room_id=? AND identity_key=?",
                 (room_id, key),
-            ).fetchone()
+            ).fetchall()
+            existing = next(
+                (row for row in existing if row["identity_key"] == key), None
+            )
         if existing:
             song_id = existing["id"]
             artists = {a["artist_key"]: a for a in json.loads(existing["artists_json"])}
@@ -86,8 +90,10 @@ def store(conn, room_id, player_id, songs, *, decoys=False):
             )
         if not decoys:
             conn.execute(
-                "INSERT OR IGNORE INTO player_songs (room_id,player_id,song_id,familiarity) VALUES (?,?,?,?)",
-                (room_id, player_id, song_id, song["familiarity"]),
+                """INSERT INTO player_songs (room_id,player_id,song_id,familiarity)
+                   SELECT ?,?,?,? WHERE NOT EXISTS
+                   (SELECT 1 FROM player_songs WHERE player_id=? AND song_id=?)""",
+                (room_id, player_id, song_id, song["familiarity"], player_id, song_id),
             )
 
 
@@ -127,6 +133,18 @@ def validate_import(imported, mode):
             "invalid_music_import", "The verified source identity is incomplete.", 503
         )
     songs = imported.get("songs", [])
+    if any(
+        isinstance(value, str) and "\x00" in value
+        for song in [
+            *songs,
+            *imported.get("observed_songs", []),
+            *imported.get("decoys", []),
+        ]
+        for value in song.values()
+    ):
+        raise DomainError(
+            "invalid_music_import", "Song metadata contains a null character."
+        )
     minimum = 10 if personal else 1
     if len({identity(s) for s in songs}) < minimum:
         raise DomainError(

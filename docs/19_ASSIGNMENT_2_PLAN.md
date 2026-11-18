@@ -76,6 +76,14 @@ initial CI. Resolve Azure access prerequisites today, independently of coding.
 
 ### Wednesday 18 November — four commits
 
+**Health-check follow-up requested for tomorrow:** the development SQLite fix is
+already committed as `9a09a66` (November 17). During the SQL Server port below,
+carry over and verify its guarantees: missing migrations or an incomplete domain
+schema must fail startup, and missing required tables or failed own-database
+read/write checks must produce `/health` 503. Keep peer availability independent
+of health. Rooms carries these guarantees into SQL Server in today's first
+milestone; Game's SQL Server adaptation and Azure verification remain pending.
+
 5. Port Rooms storage to SQL Server: initial versioned migration, migration ledger,
    idempotent seed data and repository integration tests.
 6. Port Game storage and define/test the non-destructive transfer of Assignment 1

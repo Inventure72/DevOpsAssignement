@@ -10,6 +10,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import Field
 
 from services.rooms.domain.service import RoomsService
+from services.rooms.storage import RoomsDatabase
 from shared.contracts import Body, ListeningImport, RoomSnapshot
 from shared.development import ServiceConfig, service_app
 from shared.errors import DomainError
@@ -30,12 +31,18 @@ class AdmissionResult(Body):
 
 
 def create_app(config=None, *, clock=None, playtest=False):
-    config = config or ServiceConfig.from_env("rooms")
+    config = config or ServiceConfig.from_env("rooms", default_database_url="")
+    database = (
+        None
+        if config.database_url.startswith("sqlite:///")
+        else RoomsDatabase(config.database_url)
+    )
     app, db, internal = service_app(
         "Rooms",
         config,
         Path(__file__).parent / "development",
         required_tables=("rooms", "players", "songs", "player_songs", "demo_catalog"),
+        database=database,
     )
     rooms = RoomsService(playtest=playtest)
     clock = clock or (lambda: time.time_ns() // 1_000_000)

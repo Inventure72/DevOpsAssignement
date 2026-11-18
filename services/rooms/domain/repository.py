@@ -1,28 +1,30 @@
 """Persistence operations owned by Rooms; callers own transaction boundaries."""
 
-import sqlite3
 
-
-def room(conn: sqlite3.Connection, room_id: str) -> dict | None:
+def room(conn, room_id: str) -> dict | None:
+    if "\x00" in room_id:
+        return None
     row = conn.execute("SELECT * FROM rooms WHERE id = ?", (room_id,)).fetchone()
-    return dict(row) if row else None
+    # SQL Server pads strings for equality; a path with trailing spaces must not
+    # become an alias for an existing room credential scope.
+    return dict(row) if row and row["id"] == room_id else None
 
 
-def room_by_code(conn: sqlite3.Connection, code: str) -> dict | None:
+def room_by_code(conn, code: str) -> dict | None:
+    if "\x00" in code:
+        return None
     row = conn.execute("SELECT * FROM rooms WHERE code = ?", (code,)).fetchone()
     return dict(row) if row else None
 
 
-def create_room(
-    conn: sqlite3.Connection, room_id: str, code: str, mode: str, now_ms: int
-) -> None:
+def create_room(conn, room_id: str, code: str, mode: str, now_ms: int) -> None:
     conn.execute(
         "INSERT INTO rooms (id, code, mode, created_at_ms) VALUES (?, ?, ?, ?)",
         (room_id, code, mode, now_ms),
     )
 
 
-def players(conn: sqlite3.Connection, room_id: str) -> list[dict]:
+def players(conn, room_id: str) -> list[dict]:
     return [
         dict(row)
         for row in conn.execute(
@@ -32,16 +34,14 @@ def players(conn: sqlite3.Connection, room_id: str) -> list[dict]:
     ]
 
 
-def player(conn: sqlite3.Connection, room_id: str, player_id: str) -> dict | None:
+def player(conn, room_id: str, player_id: str) -> dict | None:
     row = conn.execute(
         "SELECT * FROM players WHERE room_id = ? AND id = ?", (room_id, player_id)
     ).fetchone()
     return dict(row) if row else None
 
 
-def player_by_token_hash(
-    conn: sqlite3.Connection, room_id: str, token_hash: str
-) -> dict | None:
+def player_by_token_hash(conn, room_id: str, token_hash: str) -> dict | None:
     row = conn.execute(
         "SELECT * FROM players WHERE room_id=? AND session_token_hash=?",
         (room_id, token_hash),
@@ -50,14 +50,14 @@ def player_by_token_hash(
 
 
 def nickname_taken(
-    conn: sqlite3.Connection,
+    conn,
     room_id: str,
     nickname_key: str,
     exclude_player_id: str | None = None,
 ) -> bool:
     return (
         conn.execute(
-            "SELECT 1 FROM players WHERE room_id=? AND nickname_key=? AND (? IS NULL OR id!=?)",
+            "SELECT 1 AS present FROM players WHERE room_id=? AND nickname_key=? AND (? IS NULL OR id!=?)",
             (room_id, nickname_key, exclude_player_id, exclude_player_id),
         ).fetchone()
         is not None
@@ -67,7 +67,7 @@ def nickname_taken(
 def music_account_taken(conn, room_id, account_hash):
     return (
         conn.execute(
-            "SELECT 1 FROM players WHERE room_id=? AND music_account_hash=?",
+            "SELECT 1 AS present FROM players WHERE room_id=? AND music_account_hash=?",
             (room_id, account_hash),
         ).fetchone()
         is not None
@@ -75,7 +75,7 @@ def music_account_taken(conn, room_id, account_hash):
 
 
 def add_player(
-    conn: sqlite3.Connection,
+    conn,
     *,
     room_id: str,
     player_id: str,
@@ -112,9 +112,7 @@ def add_player(
     )
 
 
-def record_heartbeat(
-    conn: sqlite3.Connection, room_id: str, player_id: str, now_ms: int
-) -> None:
+def record_heartbeat(conn, room_id: str, player_id: str, now_ms: int) -> None:
     conn.execute(
         "UPDATE players SET last_seen_at_ms=? WHERE room_id=? AND id=?",
         (now_ms, room_id, player_id),
@@ -122,7 +120,7 @@ def record_heartbeat(
 
 
 def update_identity(
-    conn: sqlite3.Connection,
+    conn,
     room_id: str,
     player_id: str,
     nickname: str,
@@ -135,22 +133,22 @@ def update_identity(
     )
 
 
-def remove_player(conn: sqlite3.Connection, room_id: str, player_id: str) -> None:
+def remove_player(conn, room_id: str, player_id: str) -> None:
     conn.execute("DELETE FROM players WHERE room_id=? AND id=?", (room_id, player_id))
 
 
-def prune_unreferenced_songs(conn: sqlite3.Connection, room_id: str) -> None:
+def prune_unreferenced_songs(conn, room_id: str) -> None:
     conn.execute(
         "DELETE FROM songs WHERE room_id=? AND pool_kind='personal' AND NOT EXISTS (SELECT 1 FROM player_songs WHERE song_id=songs.id)",
         (room_id,),
     )
 
 
-def bump_revision(conn: sqlite3.Connection, room_id: str) -> None:
+def bump_revision(conn, room_id: str) -> None:
     conn.execute("UPDATE rooms SET revision = revision + 1 WHERE id = ?", (room_id,))
 
 
-def song_counts(conn: sqlite3.Connection, room_id: str) -> dict[str, int]:
+def song_counts(conn, room_id: str) -> dict[str, int]:
     return {
         row["player_id"]: row["count"]
         for row in conn.execute(
@@ -161,7 +159,7 @@ def song_counts(conn: sqlite3.Connection, room_id: str) -> dict[str, int]:
     }
 
 
-def song_memberships(conn: sqlite3.Connection, room_id: str) -> list[dict]:
+def song_memberships(conn, room_id: str) -> list[dict]:
     return [
         dict(row)
         for row in conn.execute(
@@ -171,7 +169,7 @@ def song_memberships(conn: sqlite3.Connection, room_id: str) -> list[dict]:
     ]
 
 
-def songs(conn: sqlite3.Connection, room_id: str) -> list[dict]:
+def songs(conn, room_id: str) -> list[dict]:
     return [
         dict(row)
         for row in conn.execute(
@@ -180,13 +178,13 @@ def songs(conn: sqlite3.Connection, room_id: str) -> list[dict]:
     ]
 
 
-def set_state(conn: sqlite3.Connection, room_id: str, state: str) -> None:
+def set_state(conn, room_id: str, state: str) -> None:
     conn.execute(
         "UPDATE rooms SET state=?, revision=revision+1 WHERE id=?", (state, room_id)
     )
 
 
-def host(conn: sqlite3.Connection, room_id: str) -> dict | None:
+def host(conn, room_id: str) -> dict | None:
     row = conn.execute(
         "SELECT id, last_seen_at_ms FROM players WHERE room_id=? AND is_host=1",
         (room_id,),
@@ -194,18 +192,16 @@ def host(conn: sqlite3.Connection, room_id: str) -> dict | None:
     return dict(row) if row else None
 
 
-def complete_room(conn: sqlite3.Connection, room_id: str, now_ms: int) -> None:
+def complete_room(conn, room_id: str, now_ms: int) -> None:
     conn.execute(
         "UPDATE rooms SET last_completed_at_ms=?, state='lobby', revision=revision+1 WHERE id=?",
         (now_ms, room_id),
     )
 
 
-def expired_room_ids(
-    conn: sqlite3.Connection, now_ms: int, retention_ms: int
-) -> list[str]:
+def expired_room_ids(conn, now_ms: int, retention_ms: int) -> list[str]:
     return [
-        row[0]
+        row["id"]
         for row in conn.execute(
             "SELECT id FROM rooms WHERE COALESCE(last_completed_at_ms, created_at_ms) + ? <= ?",
             (retention_ms, now_ms),
@@ -213,5 +209,6 @@ def expired_room_ids(
     ]
 
 
-def delete_room(conn: sqlite3.Connection, room_id: str) -> None:
+def delete_room(conn, room_id: str) -> None:
+    conn.execute("DELETE FROM player_songs WHERE room_id=?", (room_id,))
     conn.execute("DELETE FROM rooms WHERE id=?", (room_id,))
