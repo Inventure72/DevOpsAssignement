@@ -3,8 +3,9 @@
 import pymssql
 import pytest
 
-from services.rooms.storage import RoomsDatabase, connection_options
+from services.rooms.storage import RoomsDatabase
 from shared.development import ServiceConfig
+from shared.sqlserver import connection_options
 
 
 def test_sql_url_defaults_to_encryption_and_decodes_credentials():

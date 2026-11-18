@@ -130,3 +130,50 @@ Azure deployment. SQL Server transfer/recovery details belong in ADR-7.
 
 Implementation contract: [service split](docs/20_SERVICE_SPLIT.md). Schedule and
 acceptance evidence: [Assignment 2 plan](docs/19_ASSIGNMENT_2_PLAN.md).
+
+## 7. Isolate SQL Server storage and transfer legacy data from a backup
+
+- **Date:** 2026-11-18
+- **Status:** Accepted for the separate storage layer; hosted cutover is pending.
+- **Supersedes:** ADR-3 for the standalone applications. ADR-3 still describes the
+  Assignment 1 compatibility runtime.
+
+**Decision.** Rooms and Game each own a SQL Server 2022 database, login and
+migration ledger. They share connection and migration code. Each startup checks
+applied scripts against their SHA-256 receipts before updating the schema, and
+commits each new script with its receipt. Use a new script to correct an applied
+version. Each API checks its own tables and a write/read/delete probe. Health
+requires neither the peer service nor its database.
+
+**Boundary.** Game stores room and player identities as values from the frozen
+snapshot. It keeps foreign keys between its own games, frozen players, rounds,
+answers and receipts. The Rooms deletion boundary is a service operation: a
+Game transaction deletes dependent answers before deleting the games for a room.
+SQL Server disallows the two cascades into answers that SQLite supported. Existing
+snapshots and scores never depend on a live nickname, song or membership.
+Cross-service Start and lifecycle reconciliation remain separate work.
+
+**Transfer and recovery.** Quiesce the source and both target applications. Use
+the SQLite backup API to make a stable Assignment 1 schema v6 copy. Leave the
+source intact and start with initialized, empty SQL targets. The transfer checks
+both targets before writing, copies only the tables each service owns, verifies
+the rows, and commits data and the backup fingerprint in one transaction **per
+database**. It preserves room sessions, active and historical games, frozen
+facts, round state, scores and command receipts. Repo-managed Demo seed and
+derived provider caches are rebuilt separately. No SQL transaction spans both
+domains.
+
+If one commit fails or its response is lost, leave both services offline and
+retry with the identical backup and the same databases. A matching receipt is
+accepted only if the target rows still match. A nonempty target without a
+matching receipt is rejected; the tool never overwrites it. Do not use this as
+live replication after cutover. Until the full HTTP flow is verified, keep the
+old deployment and backup available as the rollback path.
+
+**Alternatives.** A shared schema would let either login access the other
+domain's records. Live dual writes would need conflict recovery while games are
+changing. A checkpointed, verified copy keeps the original usable and lets an
+operator resume a failed transfer without guessing which transaction committed.
+
+See the [transfer runbook](docs/21_ASSIGNMENT_1_TRANSFER.md) for commands,
+verification and cutover conditions.

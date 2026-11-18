@@ -23,8 +23,8 @@ has been tested against local SQL Server; Azure cold starts remain unverified.
 
 ## Local database setup and real SQL tests
 
-`db/init.sql` creates `repeat_rooms` and `repeat_rooms_user` idempotently. Execute
-it through the bootstrap helper with `SQL_ADMIN_URL` and `ROOMS_DB_PASSWORD`
+`db/init.sql` creates both service databases and scoped logins idempotently. Execute
+it through the bootstrap helper with `SQL_ADMIN_URL`, `ROOMS_DB_PASSWORD` and `GAME_DB_PASSWORD`
 provided through the process environment:
 
 ```sh
@@ -43,8 +43,8 @@ manual setup, install `requirements-test.txt` too, start Docker, then run:
 python -m tools.test_rooms_sqlserver
 ```
 
-The helper starts the prescribed SQL Server 2022 image, bootstraps a scoped login,
-marks the disposable database, runs the standalone API smoke and SQL acceptance
+The helper starts the prescribed SQL Server 2022 image, bootstraps both scoped logins,
+marks both disposable databases, runs the standalone API smoke and SQL acceptance
 tests, and removes its test container.
 On Apple Silicon it uses the image's amd64 architecture through Docker emulation.
 It never connects to Azure or the user's existing application database.
@@ -84,10 +84,10 @@ also requires the host's room credential. Public lobby/heartbeat operations use
 facts and credential hashes. Provider/OAuth/catalog-search orchestration and the
 browser's cross-origin transport are not wired to this standalone API yet.
 
-The playable monolith and Game extraction still use SQLite. Explicit
+The playable monolith still uses SQLite. Explicit
 `sqlite:///` URLs remain supported as a compatibility/test mode for Rooms; they
-are not the production storage choice. Existing SQLite data transfer is scheduled
-with the Game/database split work and does not happen automatically here.
+are not the production storage choice. Existing data can be copied with the
+[offline transfer tool](../../docs/21_ASSIGNMENT_1_TRANSFER.md).
 
 ```sh
 bash tools/verify_service.sh rooms

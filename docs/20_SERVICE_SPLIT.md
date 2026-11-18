@@ -120,3 +120,15 @@ NO ACTION; room deletion explicitly removes memberships inside its transaction.
 Exact identity checks and indexed SHA-256 digests avoid trailing-space comparison
 and index-width problems while keeping complete original recording keys. Health
 checks retain the missing-schema and own-database read/write guarantees.
+
+## Game SQL Server and data transfer milestone — 2026-11-18
+
+Game now applies its own versioned SQL Server migration with a separate login,
+keeps its frozen roster and listening facts, and checks only its own database.
+Both standalone APIs support explicit SQLite URLs for compatibility tests. The
+existing monolith remains available while HTTP coordination is implemented.
+
+The [offline transfer](21_ASSIGNMENT_1_TRANSFER.md) copies the final Assignment 1
+SQLite schema to the two initialized databases and verifies both copies. It uses
+one receipt per target to recover after an interrupted second commit. No real
+project data or Azure databases are needed for the SQL Server tests.

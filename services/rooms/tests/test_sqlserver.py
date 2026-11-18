@@ -13,10 +13,12 @@ from fastapi.testclient import TestClient
 from services.rooms.app import create_app
 from services.rooms.domain import demo, music, repository
 from services.rooms.domain.service import RETENTION_MS, RoomsService
-from services.rooms.storage import RoomsDatabase, connect_sql, connection_options
+from services.rooms.storage import RoomsDatabase
 from services.rooms.tests.test_api import admission
 from shared.development import ServiceConfig
 from shared.errors import DomainError
+from shared.sqlserver import connect_sql, connection_options
+from tests.support.sqlserver import guarded_database
 
 URL = os.environ.get("ROOMS_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -25,29 +27,11 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def guarded_database(url, marker):
-    message = "SQL acceptance requires the disposable database from tools.test_rooms_sqlserver"
-    options = connection_options(url)
-    if not marker or (options["server"], options["database"], options["user"]) != (
-        "127.0.0.1",
-        "repeat_rooms",
-        "repeat_rooms_user",
-    ):
-        raise RuntimeError(message)
-    database = RoomsDatabase(url)
-    try:
-        with database.read() as conn:
-            row = conn.execute("SELECT marker FROM rooms_test_guard").fetchone()
-    except database.errors:
-        raise RuntimeError(message) from None
-    if not row or not secrets.compare_digest(row["marker"], marker):
-        raise RuntimeError(message)
-    return database
-
-
 @pytest.fixture
 def db():
-    database = guarded_database(URL, os.environ.get("ROOMS_TEST_GUARD"))
+    database = guarded_database(
+        URL, os.environ.get("ROOMS_TEST_GUARD"), RoomsDatabase, "rooms"
+    )
     database.initialize()
     with database.transaction() as conn:
         for room in conn.execute("SELECT id FROM rooms").fetchall():
@@ -57,7 +41,7 @@ def db():
 
 def test_sql_acceptance_rejects_unmarked_database():
     with pytest.raises(RuntimeError, match="requires the disposable database"):
-        guarded_database(URL, secrets.token_hex(32))
+        guarded_database(URL, secrets.token_hex(32), RoomsDatabase, "rooms")
 
 
 def test_encrypted_connection_rejects_untrusted_server_certificate():
@@ -114,7 +98,7 @@ def test_migrations_seed_repeat_and_scoped_login(db):
         assert demo.preview_sample(conn)["title"]
     with pytest.raises(pymssql.DatabaseError):
         with db.read() as conn:
-            conn.execute("SELECT name FROM repeat_other.sys.tables").fetchall()
+            conn.execute("SELECT id FROM repeat_game.dbo.games").fetchall()
 
 
 def test_rooms_api_unicode_privacy_restart_and_health(db):

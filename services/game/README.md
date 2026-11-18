@@ -1,4 +1,4 @@
-# Game extraction checkpoint
+# Game service
 
 Run from the repository root with Python 3.12+:
 
@@ -7,10 +7,13 @@ python -m pip install -r services/game/requirements.txt
 python -m services.game
 ```
 
-Default port: 8002; override with `PORT`. The app initializes only Game tables in
-`data/game.sqlite3`. `DATABASE_URL` accepts an explicit `sqlite:///` development
-path. SQL Server and the HTTP start/reservation workflow are pending milestones.
-The app does not import Rooms or the monolith, or connect to their databases.
+Default port: 8002; override with `PORT`. Supply an explicit `DATABASE_URL` in
+the environment using `mssql+pymssql://USER:URL_ENCODED_PASSWORD@HOST:1433/DATABASE`.
+Use the Game login created by the [local bootstrap](../rooms/README.md#local-database-setup-and-real-sql-tests).
+The app applies versioned migrations to its own SQL Server database. It does not
+read Rooms tables or import the monolith. Encrypted connections verify the server
+certificate and hostname. An explicit `sqlite:///` URL remains supported for
+compatibility tests. The HTTP Start/reservation workflow is pending.
 
 `GET /health` verifies reads from every required Game table, checks its own
 database can write/read/delete and reports `GIT_SHA`. Missing domain tables return
@@ -38,3 +41,8 @@ than copied. Test from the repository root with verification dependencies instal
 python -m pytest -q tests/unit/test_game_rules.py tests/unit/test_scoring.py \
   tests/unit/test_selection.py tests/unit/test_round_preparation.py services/game/tests
 ```
+
+Run `python -m tools.test_rooms_sqlserver` to verify both standalone processes,
+mutual database isolation and the Assignment 1 transfer on a disposable SQL
+Server 2022 instance. See the [transfer runbook](../../docs/21_ASSIGNMENT_1_TRANSFER.md)
+for copying existing data.

@@ -8,8 +8,10 @@ from typing import Annotated, Literal
 from fastapi import Depends
 from pydantic import Field
 
+from services.game.domain.repository import SqlServerGameRepository
 from services.game.domain.service import GameService
 from services.game.domain.views import audio_manifest, game_view
+from services.game.storage import REQUIRED_TABLES, GameDatabase
 from shared.contracts import Body, Identifier, RoomSnapshot, Song
 from shared.development import ServiceConfig, service_app
 
@@ -68,21 +70,22 @@ class Answer(Actor):
 
 
 def create_app(config=None, *, clock=None, game=None):
-    config = config or ServiceConfig.from_env("game")
+    config = config or ServiceConfig.from_env("game", default_database_url="")
+    database = (
+        None
+        if config.database_url.startswith("sqlite:///")
+        else GameDatabase(config.database_url)
+    )
     app, db, internal = service_app(
         "Game",
         config,
         Path(__file__).parent / "development",
-        required_tables=(
-            "games",
-            "game_players",
-            "rounds",
-            "answers",
-            "game_commands",
-            "game_round_preparations",
-        ),
+        required_tables=REQUIRED_TABLES,
+        database=database,
     )
-    game = game or GameService()
+    game = game or GameService(
+        repository=SqlServerGameRepository() if database is not None else None
+    )
     clock = clock or (lambda: time.time_ns() // 1_000_000)
     lock = RLock()
 

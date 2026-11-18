@@ -101,10 +101,10 @@ activated environment. Service-specific coverage files avoid overwriting each
 other or the full-suite coverage results.
 
 GitHub Actions runs these checks on pushes and PRs, plus the monolith compatibility
-suite and frontend tests. A dedicated Rooms SQL Server job starts a local container
+suite and frontend tests. A dedicated SQL Server job starts a local container
 with generated test credentials and runs real database acceptance checks. Run it
-locally with `python -m tools.test_rooms_sqlserver`. Game SQL Server tests, image
-builds, `system.yaml` validation and Azure CD remain subsequent milestones. No CI
+locally with `python -m tools.test_rooms_sqlserver`. Image builds,
+`system.yaml` validation and Azure CD remain subsequent milestones. No CI
 job connects to Azure or uses live provider credentials.
 
 With the project Python environment installed and **Node 24+**, run all tests:
@@ -134,11 +134,11 @@ Tests use temporary data and offline provider substitutes; no keys or music down
 Assignment 2 extraction is in progress on the development branch. Rooms and
 Game now live in `services/rooms/domain` and `services/game/domain`. Independent
 [Rooms](services/rooms/README.md) and [Game](services/game/README.md) APIs own
-separate domain data. Rooms now supports SQL Server with automatic migrations and
-startup seeding; Game still uses development SQLite. The existing browser game
+separate SQL Server databases with automatic migrations. Rooms seeds the Demo
+catalog at startup; Game stores frozen match facts. The existing browser game
 still runs through the SQLite monolith using the same domain implementations.
-Game SQL Server storage, old-data transfer and cross-service gameplay remain
-subsequent milestones.
+The [Assignment 1 transfer runbook](docs/21_ASSIGNMENT_1_TRANSFER.md) covers
+offline copying and recovery. Cross-service gameplay remains a subsequent milestone.
 
 The app runs in one process with two core domains: **Rooms** handles players and membership; **Game** handles rounds and scoring. Both use SQLite. Spotify and Demo share an import and admission path. The browser separates presentation, transport and host audio.
 

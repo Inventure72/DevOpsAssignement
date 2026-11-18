@@ -1,4 +1,4 @@
-"""Isolated SQLite runtime for extraction; production SQL Server is a later step."""
+"""Shared standalone service API and explicit SQLite compatibility runtime."""
 
 import hashlib
 import os

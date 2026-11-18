@@ -12,16 +12,29 @@ def row(value):
 
 
 class GameRepository:
+    room_filter = "room_id=?"
+    latest_query = "SELECT * FROM games WHERE {room} ORDER BY started_at_ms DESC, rowid DESC LIMIT 1"
+    roster_order = "rowid"
+    current_query = "SELECT * FROM rounds WHERE game_id=? ORDER BY round_number DESC, attempt DESC LIMIT 1"
+    history_query = (
+        "SELECT id,status,end_reason,ended_at_ms FROM games WHERE {room} "
+        "AND status IN ('completed','aborted') ORDER BY ended_at_ms DESC LIMIT 50"
+    )
+
+    def room_parameters(self, room_id):
+        return (room_id,)
+
     def game(self, conn, game_id):
-        return row(
+        result = row(
             conn.execute("SELECT * FROM games WHERE id = ?", (game_id,)).fetchone()
         )
+        return result if result and result["id"] == game_id else None
 
     def latest(self, conn, room_id):
         return row(
             conn.execute(
-                "SELECT * FROM games WHERE room_id = ? ORDER BY started_at_ms DESC, rowid DESC LIMIT 1",
-                (room_id,),
+                self.latest_query.format(room=self.room_filter),
+                self.room_parameters(room_id),
             ).fetchone()
         )
 
@@ -34,18 +47,19 @@ class GameRepository:
         ]
 
     def start_receipt(self, conn, room_id, request_id):
-        return row(
-            conn.execute(
-                "SELECT * FROM games WHERE room_id = ? AND start_request_id = ?",
-                (room_id, request_id),
-            ).fetchone()
+        rows = conn.execute(
+            f"SELECT * FROM games WHERE {self.room_filter} AND start_request_id=?",
+            (*self.room_parameters(room_id), request_id),
+        ).fetchall()
+        return next(
+            (dict(r) for r in rows if r["start_request_id"] == request_id), None
         )
 
     def roster(self, conn, game_id):
         return [
             dict(r)
             for r in conn.execute(
-                "SELECT * FROM game_players WHERE game_id = ? ORDER BY rowid",
+                f"SELECT * FROM game_players WHERE game_id=? ORDER BY {self.roster_order}",
                 (game_id,),
             )
         ]
@@ -62,7 +76,7 @@ class GameRepository:
     def current(self, conn, game_id):
         return row(
             conn.execute(
-                "SELECT * FROM rounds WHERE game_id = ? ORDER BY round_number DESC, attempt DESC LIMIT 1",
+                self.current_query,
                 (game_id,),
             ).fetchone()
         )
@@ -88,18 +102,12 @@ class GameRepository:
         return preparation
 
     def save_pending_preparation(self, conn, game_id, preparation):
+        self.delete_pending_preparation(conn, game_id)
         conn.execute(
             """INSERT INTO game_round_preparations
                (game_id,id,round_number,attempt,song_key,difficulty,picked_player_id,
                 readiness_generation,acknowledgements_json)
-               VALUES (?,?,?,?,?,?,?,?,?)
-               ON CONFLICT(game_id) DO UPDATE SET
-                id=excluded.id,round_number=excluded.round_number,
-                attempt=excluded.attempt,song_key=excluded.song_key,
-                difficulty=excluded.difficulty,
-                picked_player_id=excluded.picked_player_id,
-                readiness_generation=excluded.readiness_generation,
-                acknowledgements_json=excluded.acknowledgements_json""",
+               VALUES (?,?,?,?,?,?,?,?,?)""",
             (
                 game_id,
                 preparation["id"],
@@ -123,16 +131,17 @@ class GameRepository:
         )
 
     def receipt(self, conn, game_id, request_id):
-        return row(
-            conn.execute(
-                "SELECT * FROM game_commands WHERE game_id = ? AND request_id = ?",
-                (game_id, request_id),
-            ).fetchone()
-        )
+        rows = conn.execute(
+            "SELECT * FROM game_commands WHERE game_id=? AND request_id=?",
+            (game_id, request_id),
+        ).fetchall()
+        return next((dict(r) for r in rows if r["request_id"] == request_id), None)
 
     def remember(self, conn, game_id, actor, kind, payload, result, now):
         conn.execute(
-            "INSERT INTO game_commands VALUES (?,?,?,?,?,?,?)",
+            """INSERT INTO game_commands
+               (game_id,request_id,actor_player_id,command_type,payload_json,result_json,accepted_at_ms)
+               VALUES (?,?,?,?,?,?,?)""",
             (
                 game_id,
                 payload["request_id"],
@@ -200,12 +209,31 @@ class GameRepository:
 
     def history(self, conn, room_id):
         games = conn.execute(
-            "SELECT id,status,end_reason,ended_at_ms FROM games WHERE room_id=? AND status IN ('completed','aborted') ORDER BY ended_at_ms DESC LIMIT 50",
-            (room_id,),
+            self.history_query.format(room=self.room_filter),
+            self.room_parameters(room_id),
         )
         return [
             {**dict(g), "leaderboard": self.leaderboard(conn, g["id"])} for g in games
         ]
 
     def delete_room_games(self, conn, room_id):
-        conn.execute("DELETE FROM games WHERE room_id=?", (room_id,))
+        parameters = self.room_parameters(room_id)
+        conn.execute(
+            f"DELETE FROM answers WHERE game_id IN (SELECT id FROM games WHERE {self.room_filter})",
+            parameters,
+        )
+        conn.execute(f"DELETE FROM games WHERE {self.room_filter}", parameters)
+
+
+class SqlServerGameRepository(GameRepository):
+    room_filter = "room_id=? AND room_id_bytes=?"
+    latest_query = "SELECT TOP (1) * FROM games WHERE {room} ORDER BY started_at_ms DESC, storage_order DESC"
+    roster_order = "storage_order"
+    current_query = "SELECT TOP (1) * FROM rounds WHERE game_id=? ORDER BY round_number DESC, attempt DESC"
+    history_query = (
+        "SELECT TOP (50) id,status,end_reason,ended_at_ms FROM games WHERE {room} "
+        "AND status IN ('completed','aborted') ORDER BY ended_at_ms DESC,storage_order"
+    )
+
+    def room_parameters(self, room_id):
+        return (room_id, len(room_id.encode("utf-16-le")))
