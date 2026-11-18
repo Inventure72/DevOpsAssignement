@@ -69,7 +69,11 @@ def test_migrations_seed_repeat_and_scoped_login(db):
         catalog = conn.execute(
             "SELECT id,title,artists_json FROM demo_catalog ORDER BY id"
         ).fetchall()
-        assert len(first) == 1 and len(catalog) == 100
+        assert [row["name"] for row in first] == [
+            "001_init.sql",
+            "002_start_operations.sql",
+        ]
+        assert len(catalog) == 100
         assert (
             conn.execute(
                 "SELECT COUNT(*) AS n FROM sys.tables WHERE name IN ('games','rounds','answers')"
@@ -362,8 +366,9 @@ def test_failed_migration_rolls_back_and_applied_files_are_immutable(db, tmp_pat
     migrations = tmp_path / "migrations"
     migrations.mkdir()
     initial = db.migrations / "001_init.sql"
-    (migrations / initial.name).write_bytes(initial.read_bytes())
-    bad = migrations / "002_failure.sql"
+    for applied in db.migrations.glob("*.sql"):
+        (migrations / applied.name).write_bytes(applied.read_bytes())
+    bad = migrations / "003_failure.sql"
     bad.write_text(
         "CREATE TABLE rollback_probe(id INT); THROW 51000, 'fixture failure', 1;"
     )
@@ -379,7 +384,7 @@ def test_failed_migration_rolls_back_and_applied_files_are_immutable(db, tmp_pat
         )
         assert (
             conn.execute("SELECT COUNT(*) AS n FROM schema_migrations").fetchone()["n"]
-            == 1
+            == 2
         )
     bad.unlink()
     early = migrations / "000_early.sql"

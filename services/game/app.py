@@ -3,7 +3,7 @@
 import time
 from pathlib import Path
 from threading import RLock
-from typing import Annotated, Literal
+from typing import Annotated
 
 from fastapi import Depends
 from pydantic import Field
@@ -12,27 +12,8 @@ from services.game.domain.repository import SqlServerGameRepository
 from services.game.domain.service import GameService
 from services.game.domain.views import audio_manifest, game_view
 from services.game.storage import REQUIRED_TABLES, GameDatabase
-from shared.contracts import Body, Identifier, RoomSnapshot, Song
+from shared.contracts import Body, Identifier, Song, StartedGame, StartGame
 from shared.development import ServiceConfig, service_app
-
-
-class Settings(Body):
-    round_count: Literal[5, 10, 15] = 10
-    answer_seconds: Literal[10, 20, 30] = 20
-    difficulty: Literal["easy", "mixed", "hard"] = "mixed"
-    decoys_enabled: bool = True
-
-
-class StartCommand(Body):
-    request_id: Identifier
-    room_revision: Annotated[int, Field(ge=0)]
-
-
-class StartGame(Body):
-    snapshot: RoomSnapshot
-    settings: Settings
-    actor_id: Identifier
-    command: StartCommand
 
 
 class Actor(Body):
@@ -89,7 +70,9 @@ def create_app(config=None, *, clock=None, game=None):
     clock = clock or (lambda: time.time_ns() // 1_000_000)
     lock = RLock()
 
-    @app.post("/internal/games", dependencies=[Depends(internal)])
+    @app.post(
+        "/internal/games", dependencies=[Depends(internal)], response_model=StartedGame
+    )
     def start(payload: StartGame) -> dict:
         with lock, db.transaction() as conn:
             return game.start(

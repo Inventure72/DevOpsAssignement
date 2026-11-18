@@ -14,7 +14,10 @@ from urllib.request import Request, urlopen
 
 import pytest
 
+from services.game.storage import GameDatabase
+from services.rooms.storage import RoomsDatabase
 from services.rooms.tests.test_api import admission
+from tests.support.sqlserver import guarded_database
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -41,22 +44,24 @@ def stop(process):
             process.wait(timeout=5)
 
 
-def test_two_service_processes_own_data_and_peer_independent_health(tmp_path):
+def verify_process_start(tmp_path, database_urls):
     service_token = secrets.token_urlsafe(32)
     headers = {"X-Service-Token": service_token}
     processes, urls = {}, {}
     with ExitStack() as stack:
-        for name in ("rooms", "game"):
+        for name in ("game", "rooms"):
             with socket.socket() as listener:
                 listener.bind(("127.0.0.1", 0))
                 port = listener.getsockname()[1]
             environment = {
                 **os.environ,
-                "DATABASE_URL": f"sqlite:///{tmp_path / (name + '.sqlite3')}",
+                "DATABASE_URL": database_urls[name],
                 "SERVICE_TOKEN": service_token,
                 "PORT": str(port),
                 "GIT_SHA": "process-test",
             }
+            if name == "rooms":
+                environment["GAME_BASE_URL"] = urls["game"]
             log = stack.enter_context((tmp_path / f"{name}.log").open("w+"))
             process = subprocess.Popen(
                 [sys.executable, "-m", f"services.{name}"],
@@ -98,38 +103,65 @@ def test_two_service_processes_own_data_and_peer_independent_health(tmp_path):
                 )[0]
                 == 201
             )
-        status, snapshot = request(
+        room_auth = {"Authorization": f"Bearer {host['token']}"}
+        lobby_status, lobby = request(
             urls["rooms"],
-            f"/internal/rooms/{host['room_id']}/snapshot",
-            headers=headers | {"Authorization": f"Bearer {host['token']}"},
+            f"/api/rooms/{host['room_id']}/lobby",
+            headers=room_auth,
         )
-        assert status == 200
+        assert lobby_status == 200
+        start_path = f"/api/rooms/{host['room_id']}/start"
+        payload = {
+            "request_id": "process-start",
+            "room_revision": lobby["revision"],
+            "settings": {"round_count": 5, "decoys_enabled": False},
+        }
         status, started = request(
-            urls["game"],
-            "/internal/games",
-            headers=headers,
-            payload={
-                "snapshot": snapshot,
-                "actor_id": host["player_id"],
-                "settings": {"round_count": 5, "decoys_enabled": False},
-                "command": {
-                    "request_id": "process-start",
-                    "room_revision": snapshot["revision"],
-                },
-            },
+            urls["rooms"],
+            start_path,
+            headers=room_auth,
+            payload=payload,
         )
-        assert status == 200
+        assert status == 200, started
+        assert request(
+            urls["rooms"], start_path, headers=room_auth, payload=payload
+        ) == (200, started)
         game_path = f"/internal/games/{started['game_id']}?actor_id={host['player_id']}"
         assert request(urls["game"], game_path, headers=headers)[1]["phase"] == "setup"
-        # Stopping the peer cannot make own-database health fail or prevent a
-        # read of Game's frozen facts. This is not yet HTTP orchestration at Start.
         stop(processes["rooms"])
         assert request(urls["game"], "/health")[0] == 200
         assert request(urls["game"], game_path, headers=headers)[0] == 200
+
+
+def test_two_service_processes_own_data_and_peer_independent_health(tmp_path):
+    verify_process_start(
+        tmp_path,
+        {
+            name: f"sqlite:///{tmp_path / (name + '.sqlite3')}"
+            for name in ("rooms", "game")
+        },
+    )
     assert {p.name for p in tmp_path.glob("*.sqlite3")} == {
         "rooms.sqlite3",
         "game.sqlite3",
     }
+
+
+def test_two_sql_server_service_processes_start_over_http(tmp_path):
+    database_urls = {
+        name: os.environ.get(f"{name.upper()}_TEST_DATABASE_URL")
+        for name in ("rooms", "game")
+    }
+    if not all(database_urls.values()):
+        pytest.skip("Run python -m tools.test_rooms_sqlserver for SQL Server")
+    for name, factory in (("rooms", RoomsDatabase), ("game", GameDatabase)):
+        guarded_database(
+            database_urls[name],
+            os.environ.get(f"{name.upper()}_TEST_GUARD"),
+            factory,
+            name,
+        )
+    verify_process_start(tmp_path, database_urls)
 
 
 @pytest.mark.parametrize("service,peer", [("rooms", "game"), ("game", "rooms")])

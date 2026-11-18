@@ -6,7 +6,7 @@ Decision date: 2026-11-17. See ADR-6 and the Assignment 2 delivery plan.
 
 | Owner | Tables/state | Responsibilities |
 |---|---|---|
-| Rooms | rooms, players, songs, player_songs, demo_catalog; public catalog tables/caches | Admission, credentials, presence, settings, music sources, search, media and snapshot export |
+| Rooms | rooms, players, songs, player_songs, demo_catalog, room_start_operations; public catalog tables/caches | Admission, credentials, presence, settings, music sources, search, media and Start reservations |
 | Game | games, game_players, rounds, answers, game_commands, game_round_preparations; audio leases | Frozen facts, candidate planning, readiness, scoring, rankings and playback authority |
 
 `games.room_id` becomes a reference value, without a cross-service foreign key.
@@ -33,15 +33,14 @@ The existing cookie-based browser contract remains in the monolith during this
 checkpoint. The split browser authentication contract must be implemented and
 tested before switching the UI to separate HTTPS origins.
 
-## Target cross-service workflows (not yet implemented)
+## Cross-service workflows
 
 1. **Start:** Rooms authenticates the host, validates revision and readiness, and
    persists a stable start operation together with a frozen snapshot and locked
    admission. It calls Game over HTTP using that operation's identity. Game creates
    at most one game for it. Timeouts have an ambiguous outcome: Rooms retains the
-   operation and retries/reconciles by identity instead of allowing another Start
-   or reopening the lobby. Explicit rejection can release the reservation only
-   after the outcome is established.
+   operation and retries by identity instead of allowing another Start or
+   reopening the lobby. Local validation failures never reserve a room.
 2. **Presence and authorization:** Game receives current authority/presence over
    authenticated HTTP rather than reading live Rooms tables. Frozen listener
    ownership remains unchanged. Each outbound request has a bounded timeout.
@@ -132,3 +131,28 @@ The [offline transfer](21_ASSIGNMENT_1_TRANSFER.md) copies the final Assignment 
 SQLite schema to the two initialized databases and verifies both copies. It uses
 one receipt per target to recover after an interrupted second commit. No real
 project data or Azure databases are needed for the SQL Server tests.
+
+## HTTP Start milestone — 2026-11-18
+
+1. The host sends their room bearer token, client request ID, lobby revision and
+   settings to Rooms. Rooms validates authorization, revision and readiness.
+2. The Rooms transaction saves a new operation ID and private Game payload in
+   `room_start_operations` and moves the room to `playing`, closing admission.
+   A row with no Game ID is an unresolved Start. No database lock spans HTTP.
+3. Rooms posts the saved values to Game over authenticated HTTP, with a
+   three-second outbound deadline. Game commits one game per room and operation ID
+   and returns that Game ID on repeat. A second Rooms transaction stores the result.
+4. An unavailable peer, non-success or invalid reply, or failure saving the response
+   yields a retryable 503. The host resends the original client request, including
+   its settings and revision. Rooms dispatches the original frozen facts or
+   returns the confirmed Game ID locally. A new request ID cannot start another
+   game while the room is locked. No timer reopens an unresolved lobby.
+
+Game sees the shared service token but never the host's room token. The private
+snapshot is absent from public replies. Both APIs keep their own health checks.
+Real-process acceptance starts a game through Rooms without forwarding the
+snapshot in the test harness, on SQLite and SQL Server. Recovery tests use the
+real apps with an injected HTTP transport fault after Game commits; separate
+tests stub peer responses for deadline and Rooms confirmation failures. No
+Azure deployment or browser cutover is claimed. Completion, presence and
+lifecycle reconciliation remain the next milestone.

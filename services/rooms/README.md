@@ -84,6 +84,19 @@ also requires the host's room credential. Public lobby/heartbeat operations use
 facts and credential hashes. Provider/OAuth/catalog-search orchestration and the
 browser's cross-origin transport are not wired to this standalone API yet.
 
+The host starts a game at `POST /api/rooms/{room_id}/start` with their bearer
+token and a body such as:
+
+```json
+{"request_id":"one-request-id","room_revision":3,"settings":{"round_count":5,"decoys_enabled":false}}
+```
+
+Set `GAME_BASE_URL` to the Game origin (HTTPS outside local development) and
+configure the same `SERVICE_TOKEN` in both services. Start closes admission
+before contacting Game. A `game_start_pending` response means retry the same
+request ID, revision and settings. The confirmed reply contains only
+`{"game_id":"..."}`; repeating it does not require Game to be reachable.
+
 The playable monolith still uses SQLite. Explicit
 `sqlite:///` URLs remain supported as a compatibility/test mode for Rooms; they
 are not the production storage choice. Existing data can be copied with the

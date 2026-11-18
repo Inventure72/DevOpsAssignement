@@ -1,5 +1,6 @@
 """Rooms-only extraction API; provider/browser orchestration follows separately."""
 
+import os
 import time
 from pathlib import Path
 from threading import RLock
@@ -10,8 +11,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import Field
 
 from services.rooms.domain.service import RoomsService
-from services.rooms.storage import RoomsDatabase
-from shared.contracts import Body, ListeningImport, RoomSnapshot
+from services.rooms.game_client import GameClient
+from services.rooms.start_flow import RoomStart, StartFlow
+from services.rooms.storage import REQUIRED_TABLES, RoomsDatabase
+from shared.contracts import Body, ListeningImport, RoomSnapshot, StartedGame
 from shared.development import ServiceConfig, service_app
 from shared.errors import DomainError
 
@@ -30,7 +33,7 @@ class AdmissionResult(Body):
     token: str
 
 
-def create_app(config=None, *, clock=None, playtest=False):
+def create_app(config=None, *, clock=None, playtest=False, game_client=None):
     config = config or ServiceConfig.from_env("rooms", default_database_url="")
     database = (
         None
@@ -41,11 +44,15 @@ def create_app(config=None, *, clock=None, playtest=False):
         "Rooms",
         config,
         Path(__file__).parent / "development",
-        required_tables=("rooms", "players", "songs", "player_songs", "demo_catalog"),
+        required_tables=REQUIRED_TABLES,
         database=database,
     )
     rooms = RoomsService(playtest=playtest)
     clock = clock or (lambda: time.time_ns() // 1_000_000)
+    peer_url = os.environ.get("GAME_BASE_URL")
+    if game_client is None and peer_url and config.service_token:
+        game_client = GameClient(peer_url, config.service_token)
+    start_flow = StartFlow(db, rooms, game_client, clock)
     lock = RLock()
     bearer = HTTPBearer(auto_error=False)
 
@@ -116,6 +123,12 @@ def create_app(config=None, *, clock=None, playtest=False):
             actor = rooms.authenticate(conn, room_id, credential, now)
             rooms.heartbeat(conn, room_id, actor["id"], now)
             return {"accepted": True, "server_now_ms": now}
+
+    @app.post("/api/rooms/{room_id}/start")
+    async def start(
+        room_id: str, payload: RoomStart, credential: str = Depends(token)
+    ) -> StartedGame:
+        return await start_flow.start(room_id, credential, payload)
 
     @app.get(
         "/internal/rooms/{room_id}/snapshot",

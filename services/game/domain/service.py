@@ -5,6 +5,7 @@ import random
 import uuid
 
 from shared.errors import DomainError
+from shared.start_readiness import require_start_readiness
 from services.game.domain.preparation import (
     RoundPreparations,
     next_slot,
@@ -142,28 +143,7 @@ class GameService:
             raise DomainError(
                 "stale_revision", "The lobby changed. Refresh and try again.", 409
             )
-        minimum, maximum = (
-            snapshot.get("minimum_players", 3),
-            snapshot.get("maximum_players", 10),
-        )
-        if not minimum <= len(snapshot["players"]) <= maximum:
-            raise DomainError(
-                "player_count", f"A game needs {minimum}–{maximum} players."
-            )
-        if any(
-            sum(
-                any(
-                    listener["player_id"] == player["id"]
-                    for listener in song["listeners"]
-                )
-                for song in snapshot["songs"]
-            )
-            < 10
-            for player in snapshot["players"]
-        ):
-            raise DomainError(
-                "insufficient_songs", "Every player needs at least ten songs."
-            )
+        require_start_readiness(snapshot)
         if any(g["room_id"] == snapshot["room_id"] for g in self.repo.active(conn)):
             raise DomainError("game_active", "A game is already running.", 409)
         plan = prepare_plan(

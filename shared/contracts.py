@@ -109,3 +109,26 @@ class RoomSnapshot(Body):
             if not set(listeners) <= ids:
                 raise ValueError("Frozen listeners must belong to the roster")
         return self
+
+
+class Settings(Body):
+    round_count: Literal[5, 10, 15] = 10
+    answer_seconds: Literal[10, 20, 30] = 20
+    difficulty: Literal["easy", "mixed", "hard"] = "mixed"
+    decoys_enabled: bool = True
+
+
+class StartCommand(Body):
+    request_id: Identifier
+    room_revision: Annotated[int, Field(ge=0)]
+
+
+class StartGame(Body):
+    snapshot: RoomSnapshot
+    settings: Settings
+    actor_id: Identifier
+    command: StartCommand
+
+
+class StartedGame(Body):
+    game_id: Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]

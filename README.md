@@ -138,7 +138,8 @@ separate SQL Server databases with automatic migrations. Rooms seeds the Demo
 catalog at startup; Game stores frozen match facts. The existing browser game
 still runs through the SQLite monolith using the same domain implementations.
 The [Assignment 1 transfer runbook](docs/21_ASSIGNMENT_1_TRANSFER.md) covers
-offline copying and recovery. Cross-service gameplay remains a subsequent milestone.
+offline copying and recovery. [Rooms starts Game over HTTP](docs/20_SERVICE_SPLIT.md#http-start-milestone--2026-11-18);
+completion and the rest of the cross-service lifecycle remain a subsequent milestone.
 
 The app runs in one process with two core domains: **Rooms** handles players and membership; **Game** handles rounds and scoring. Both use SQLite. Spotify and Demo share an import and admission path. The browser separates presentation, transport and host audio.
 

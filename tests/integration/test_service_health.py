@@ -14,7 +14,14 @@ from shared.development import DevelopmentDatabase, ServiceConfig
     "factory,table",
     [
         (rooms_app, table)
-        for table in ("rooms", "players", "songs", "player_songs", "demo_catalog")
+        for table in (
+            "rooms",
+            "players",
+            "songs",
+            "player_songs",
+            "demo_catalog",
+            "room_start_operations",
+        )
     ]
     + [
         (game_app, table)

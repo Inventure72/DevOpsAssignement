@@ -13,7 +13,8 @@ Use the Game login created by the [local bootstrap](../rooms/README.md#local-dat
 The app applies versioned migrations to its own SQL Server database. It does not
 read Rooms tables or import the monolith. Encrypted connections verify the server
 certificate and hostname. An explicit `sqlite:///` URL remains supported for
-compatibility tests. The HTTP Start/reservation workflow is pending.
+compatibility tests. Rooms sends a persisted Start operation and frozen snapshot
+to `POST /internal/games`; Game returns the same Game ID when Rooms retries it.
 
 `GET /health` verifies reads from every required Game table, checks its own
 database can write/read/delete and reports `GIT_SHA`. Missing domain tables return

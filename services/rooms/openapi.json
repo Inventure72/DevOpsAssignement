@@ -551,6 +551,73 @@
         "title": "RoomSnapshot",
         "type": "object"
       },
+      "RoomStart": {
+        "additionalProperties": false,
+        "properties": {
+          "request_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Request Id",
+            "type": "string"
+          },
+          "room_revision": {
+            "minimum": 0.0,
+            "title": "Room Revision",
+            "type": "integer"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/Settings"
+          }
+        },
+        "required": [
+          "request_id",
+          "room_revision"
+        ],
+        "title": "RoomStart",
+        "type": "object"
+      },
+      "Settings": {
+        "additionalProperties": false,
+        "properties": {
+          "answer_seconds": {
+            "default": 20,
+            "enum": [
+              10,
+              20,
+              30
+            ],
+            "title": "Answer Seconds",
+            "type": "integer"
+          },
+          "decoys_enabled": {
+            "default": true,
+            "title": "Decoys Enabled",
+            "type": "boolean"
+          },
+          "difficulty": {
+            "default": "mixed",
+            "enum": [
+              "easy",
+              "mixed",
+              "hard"
+            ],
+            "title": "Difficulty",
+            "type": "string"
+          },
+          "round_count": {
+            "default": 10,
+            "enum": [
+              5,
+              10,
+              15
+            ],
+            "title": "Round Count",
+            "type": "integer"
+          }
+        },
+        "title": "Settings",
+        "type": "object"
+      },
       "Song": {
         "additionalProperties": false,
         "properties": {
@@ -622,6 +689,21 @@
           "artists"
         ],
         "title": "Song",
+        "type": "object"
+      },
+      "StartedGame": {
+        "additionalProperties": false,
+        "properties": {
+          "game_id": {
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Game Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id"
+        ],
+        "title": "StartedGame",
         "type": "object"
       },
       "ValidationError": {
@@ -1019,6 +1101,130 @@
           }
         ],
         "summary": "Lobby"
+      }
+    },
+    "/api/rooms/{room_id}/start": {
+      "post": {
+        "operationId": "start_api_rooms__room_id__start_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "room_id",
+            "required": true,
+            "schema": {
+              "title": "Room Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoomStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartedGame"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Start"
       }
     },
     "/health": {

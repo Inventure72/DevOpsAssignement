@@ -670,6 +670,21 @@
         "title": "StartGame",
         "type": "object"
       },
+      "StartedGame": {
+        "additionalProperties": false,
+        "properties": {
+          "game_id": {
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Game Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id"
+        ],
+        "title": "StartedGame",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -842,9 +857,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Start Internal Games Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/StartedGame"
                 }
               }
             },

@@ -7,7 +7,14 @@ from services.rooms.domain.demo import seed_demo
 from shared.sqlserver import SqlServerDatabase
 
 logger = logging.getLogger(__name__)
-REQUIRED_TABLES = ("rooms", "players", "songs", "player_songs", "demo_catalog")
+REQUIRED_TABLES = (
+    "rooms",
+    "players",
+    "songs",
+    "player_songs",
+    "demo_catalog",
+    "room_start_operations",
+)
 
 
 class RoomsDatabase(SqlServerDatabase):
