@@ -44,6 +44,9 @@ class StartFlow:
             )
         except self.db.errors:
             raise start_pending() from None
+        return await self.dispatch(reservation)
+
+    async def dispatch(self, reservation):
         if reservation.game_id is not None:
             return StartedGame(game_id=reservation.game_id)
         if self.game_client is None:

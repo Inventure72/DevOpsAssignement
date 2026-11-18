@@ -97,6 +97,17 @@ before contacting Game. A `game_start_pending` response means retry the same
 request ID, revision and settings. The confirmed reply contains only
 `{"game_id":"..."}`; repeating it does not require Game to be reachable.
 
+Use `POST /api/rooms/{room_id}/game/sync` with a room bearer token to retrieve
+the current match status and reconcile a recorded Game result. It returns
+`{"game":null}` when the room is back in the lobby. The Rooms worker also
+reconciles without a client request when Game is configured. If Game is
+unavailable, sync returns a retryable 503 and admission remains locked.
+
+Use `POST /api/rooms/{room_id}/leave` with a request ID. Include the game ID
+when leaving a match. Host Leave ends that game and preserves the host's room
+token. Guests keep their membership when leaving a match; guest Leave without
+a game ID in the lobby removes their membership.
+
 The playable monolith still uses SQLite. Explicit
 `sqlite:///` URLs remain supported as a compatibility/test mode for Rooms; they
 are not the production storage choice. Existing data can be copied with the

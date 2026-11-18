@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Identifier = Annotated[str, Field(min_length=1, max_length=128)]
+GameID = Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
 
 
 class Body(BaseModel):
@@ -131,4 +132,52 @@ class StartGame(Body):
 
 
 class StartedGame(Body):
-    game_id: Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
+    game_id: GameID
+
+
+class LivePresence(Body):
+    host_connected: bool
+    host_expired: bool
+    connected_player_ids: Annotated[list[Identifier], Field(max_length=10)]
+
+
+class HostLeave(Body):
+    actor_id: Identifier
+    request_id: Identifier
+
+
+class ReconcileGame(Body):
+    game_id: GameID | None = None
+    room_revision: Annotated[int, Field(ge=0)] | None = None
+    operation_id: Identifier | None = None
+    presence: LivePresence | None = None
+    leave: HostLeave | None = None
+
+    @model_validator(mode="after")
+    def bound_to_game(self):
+        if self.game_id is None and (
+            self.room_revision is None or self.leave is not None
+        ):
+            raise ValueError("Game lifecycle requires a bound match")
+        return self
+
+
+class GameOutcome(StartedGame):
+    status: Literal["preparing", "playing", "completed", "aborted"]
+    ended_at_ms: int | None
+    end_reason: str | None
+
+    @model_validator(mode="after")
+    def terminal_result(self):
+        terminal = self.status in {"completed", "aborted"}
+        if terminal != (self.ended_at_ms is not None) or terminal != (
+            self.end_reason is not None
+        ):
+            raise ValueError("Inconsistent Game lifecycle result")
+        return self
+
+
+class GameLifecycleReport(GameOutcome):
+    room_id: Identifier
+    room_revision: Annotated[int, Field(ge=0)]
+    operation_id: Identifier

@@ -72,6 +72,7 @@ def test_migrations_seed_repeat_and_scoped_login(db):
         assert [row["name"] for row in first] == [
             "001_init.sql",
             "002_start_operations.sql",
+            "003_reconcile_start.sql",
         ]
         assert len(catalog) == 100
         assert (
@@ -368,7 +369,7 @@ def test_failed_migration_rolls_back_and_applied_files_are_immutable(db, tmp_pat
     initial = db.migrations / "001_init.sql"
     for applied in db.migrations.glob("*.sql"):
         (migrations / applied.name).write_bytes(applied.read_bytes())
-    bad = migrations / "003_failure.sql"
+    bad = migrations / "004_failure.sql"
     bad.write_text(
         "CREATE TABLE rollback_probe(id INT); THROW 51000, 'fixture failure', 1;"
     )
@@ -384,7 +385,7 @@ def test_failed_migration_rolls_back_and_applied_files_are_immutable(db, tmp_pat
         )
         assert (
             conn.execute("SELECT COUNT(*) AS n FROM schema_migrations").fetchone()["n"]
-            == 2
+            == 3
         )
     bad.unlink()
     early = migrations / "000_early.sql"

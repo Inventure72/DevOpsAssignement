@@ -261,6 +261,76 @@
         "title": "FrozenSong",
         "type": "object"
       },
+      "GameLifecycleReport": {
+        "additionalProperties": false,
+        "properties": {
+          "end_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Reason"
+          },
+          "ended_at_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At Ms"
+          },
+          "game_id": {
+            "pattern": "^[0-9a-f]{32}$",
+            "title": "Game Id",
+            "type": "string"
+          },
+          "operation_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "room_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Room Id",
+            "type": "string"
+          },
+          "room_revision": {
+            "minimum": 0.0,
+            "title": "Room Revision",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "preparing",
+              "playing",
+              "completed",
+              "aborted"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "status",
+          "ended_at_ms",
+          "end_reason",
+          "room_id",
+          "room_revision",
+          "operation_id"
+        ],
+        "title": "GameLifecycleReport",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -298,6 +368,29 @@
         "title": "Health",
         "type": "object"
       },
+      "HostLeave": {
+        "additionalProperties": false,
+        "properties": {
+          "actor_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "request_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "actor_id",
+          "request_id"
+        ],
+        "title": "HostLeave",
+        "type": "object"
+      },
       "Listener": {
         "additionalProperties": false,
         "properties": {
@@ -322,6 +415,36 @@
           "familiarity"
         ],
         "title": "Listener",
+        "type": "object"
+      },
+      "LivePresence": {
+        "additionalProperties": false,
+        "properties": {
+          "connected_player_ids": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 10,
+            "title": "Connected Player Ids",
+            "type": "array"
+          },
+          "host_connected": {
+            "title": "Host Connected",
+            "type": "boolean"
+          },
+          "host_expired": {
+            "title": "Host Expired",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "host_connected",
+          "host_expired",
+          "connected_player_ids"
+        ],
+        "title": "LivePresence",
         "type": "object"
       },
       "Preload": {
@@ -427,6 +550,70 @@
           "readiness_generation"
         ],
         "title": "Ready",
+        "type": "object"
+      },
+      "ReconcileGame": {
+        "additionalProperties": false,
+        "properties": {
+          "game_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{32}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Id"
+          },
+          "leave": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HostLeave"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operation_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Operation Id"
+          },
+          "presence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LivePresence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "room_revision": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Revision"
+          }
+        },
+        "title": "ReconcileGame",
         "type": "object"
       },
       "RoomSnapshot": {
@@ -1920,6 +2107,141 @@
           }
         },
         "summary": "Ready"
+      }
+    },
+    "/internal/rooms/{room_id}/game-lifecycle": {
+      "post": {
+        "operationId": "lifecycle_internal_rooms__room_id__game_lifecycle_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "room_id",
+            "required": true,
+            "schema": {
+              "title": "Room Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-service-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Service-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconcileGame"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameLifecycleReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Lifecycle"
       }
     }
   }

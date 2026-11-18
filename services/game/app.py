@@ -11,8 +11,17 @@ from pydantic import Field
 from services.game.domain.repository import SqlServerGameRepository
 from services.game.domain.service import GameService
 from services.game.domain.views import audio_manifest, game_view
+from services.game.lifecycle import abort_interrupted_games, reconcile_game
 from services.game.storage import REQUIRED_TABLES, GameDatabase
-from shared.contracts import Body, Identifier, Song, StartedGame, StartGame
+from shared.contracts import (
+    Body,
+    GameLifecycleReport,
+    Identifier,
+    ReconcileGame,
+    Song,
+    StartedGame,
+    StartGame,
+)
 from shared.development import ServiceConfig, service_app
 
 
@@ -57,17 +66,18 @@ def create_app(config=None, *, clock=None, game=None):
         if config.database_url.startswith("sqlite:///")
         else GameDatabase(config.database_url)
     )
+    game = game or GameService(
+        repository=SqlServerGameRepository() if database is not None else None
+    )
+    clock = clock or (lambda: time.time_ns() // 1_000_000)
     app, db, internal = service_app(
         "Game",
         config,
         Path(__file__).parent / "development",
         required_tables=REQUIRED_TABLES,
         database=database,
+        after_initialize=lambda db: abort_interrupted_games(db, game, clock),
     )
-    game = game or GameService(
-        repository=SqlServerGameRepository() if database is not None else None
-    )
-    clock = clock or (lambda: time.time_ns() // 1_000_000)
     lock = RLock()
 
     @app.post(
@@ -83,6 +93,13 @@ def create_app(config=None, *, clock=None, game=None):
                 payload.command.model_dump(),
                 clock(),
             )
+
+    @app.post(
+        "/internal/rooms/{room_id}/game-lifecycle", dependencies=[Depends(internal)]
+    )
+    def lifecycle(room_id: str, payload: ReconcileGame) -> GameLifecycleReport:
+        with lock, db.transaction() as conn:
+            return reconcile_game(conn, game, room_id, payload, clock())
 
     @app.get("/internal/games/{game_id}", dependencies=[Depends(internal)])
     def state(game_id: str, actor_id: str) -> dict:
@@ -138,6 +155,7 @@ def create_app(config=None, *, clock=None, game=None):
                 payload.actor_id,
                 payload.readiness_generation,
                 clock(),
+                host_connected=False,
             )
 
     @app.post(

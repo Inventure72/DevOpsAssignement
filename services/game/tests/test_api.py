@@ -194,6 +194,14 @@ def test_preparation_readiness_answer_and_reveal_use_server_time(config):
                 ).status_code
                 == 200
             )
+        assert (
+            client.get(path + "?actor_id=p0", headers=headers).json()["phase"]
+            == "ready"
+        )
+        assert (
+            client.post(path + "/advance", json=presence, headers=headers).status_code
+            == 200
+        )
         now[0] = 9000
         client.post(path + "/advance", json=presence, headers=headers)
         assert (

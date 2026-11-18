@@ -117,7 +117,7 @@ def test_own_schema_restart_and_database_health(config, monkeypatch):
         with client.app.state.db.read() as conn:
             assert (
                 conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0]
-                == 2
+                == 3
             )
     with TestClient(app) as client:
 

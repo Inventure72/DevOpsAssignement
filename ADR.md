@@ -151,7 +151,8 @@ answers and receipts. The Rooms deletion boundary is a service operation: a
 Game transaction deletes dependent answers before deleting the games for a room.
 SQL Server disallows the two cascades into answers that SQLite supported. Existing
 snapshots and scores never depend on a live nickname, song or membership.
-Cross-service Start and lifecycle reconciliation remain separate work.
+Cross-service Start and lifecycle reconciliation use the
+[HTTP service contracts](docs/20_SERVICE_SPLIT.md#http-lifecycle-milestone--2026-11-18).
 
 **Transfer and recovery.** Quiesce the source and both target applications. Use
 the SQLite backup API to make a stable Assignment 1 schema v6 copy. Leave the

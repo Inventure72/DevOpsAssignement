@@ -211,7 +211,7 @@ class GameRepository:
         games = conn.execute(
             self.history_query.format(room=self.room_filter),
             self.room_parameters(room_id),
-        )
+        ).fetchall()
         return [
             {**dict(g), "leaderboard": self.leaderboard(conn, g["id"])} for g in games
         ]

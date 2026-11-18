@@ -9,9 +9,11 @@ from typing import Annotated, Literal
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import Field
+from starlette.concurrency import run_in_threadpool
 
 from services.rooms.domain.service import RoomsService
 from services.rooms.game_client import GameClient
+from services.rooms.lifecycle import LeaveRoom, LeftRoom, RoomGame, RoomLifecycle
 from services.rooms.start_flow import RoomStart, StartFlow
 from services.rooms.storage import REQUIRED_TABLES, RoomsDatabase
 from shared.contracts import Body, ListeningImport, RoomSnapshot, StartedGame
@@ -33,26 +35,32 @@ class AdmissionResult(Body):
     token: str
 
 
-def create_app(config=None, *, clock=None, playtest=False, game_client=None):
+def create_app(
+    config=None, *, clock=None, playtest=False, game_client=None, lifecycle_interval=1.0
+):
     config = config or ServiceConfig.from_env("rooms", default_database_url="")
     database = (
         None
         if config.database_url.startswith("sqlite:///")
         else RoomsDatabase(config.database_url)
     )
+    peer_url = os.environ.get("GAME_BASE_URL")
+    if game_client is None and peer_url and config.service_token:
+        game_client = GameClient(peer_url, config.service_token)
     app, db, internal = service_app(
         "Rooms",
         config,
         Path(__file__).parent / "development",
         required_tables=REQUIRED_TABLES,
         database=database,
+        worker=(lambda: lifecycle.run(lifecycle_interval))
+        if game_client is not None and lifecycle_interval is not None
+        else None,
     )
     rooms = RoomsService(playtest=playtest)
     clock = clock or (lambda: time.time_ns() // 1_000_000)
-    peer_url = os.environ.get("GAME_BASE_URL")
-    if game_client is None and peer_url and config.service_token:
-        game_client = GameClient(peer_url, config.service_token)
     start_flow = StartFlow(db, rooms, game_client, clock)
+    lifecycle = RoomLifecycle(db, rooms, game_client, start_flow, clock)
     lock = RLock()
     bearer = HTTPBearer(auto_error=False)
 
@@ -116,13 +124,32 @@ def create_app(config=None, *, clock=None, playtest=False, game_client=None):
             rooms.authenticate(conn, room_id, credential, now)
             return rooms.lobby(conn, room_id, now)
 
-    @app.post("/api/rooms/{room_id}/heartbeat")
-    def heartbeat(room_id: str, credential: str = Depends(token)) -> dict:
+    def heartbeat_transaction(room_id, credential):
         with lock, db.transaction() as conn:
             now = clock()
             actor = rooms.authenticate(conn, room_id, credential, now)
             rooms.heartbeat(conn, room_id, actor["id"], now)
             return {"accepted": True, "server_now_ms": now}
+
+    @app.post("/api/rooms/{room_id}/heartbeat")
+    async def heartbeat(room_id: str, credential: str = Depends(token)) -> dict:
+        try:
+            return await run_in_threadpool(heartbeat_transaction, room_id, credential)
+        except DomainError as error:
+            if error.code != "host_expired" or game_client is None:
+                raise
+        await lifecycle.sync(room_id, credential)
+        return await run_in_threadpool(heartbeat_transaction, room_id, credential)
+
+    @app.post("/api/rooms/{room_id}/game/sync")
+    async def sync_game(room_id: str, credential: str = Depends(token)) -> RoomGame:
+        return await lifecycle.sync(room_id, credential)
+
+    @app.post("/api/rooms/{room_id}/leave")
+    async def leave(
+        room_id: str, payload: LeaveRoom, credential: str = Depends(token)
+    ) -> LeftRoom:
+        return await lifecycle.leave(room_id, credential, payload)
 
     @app.post("/api/rooms/{room_id}/start")
     async def start(

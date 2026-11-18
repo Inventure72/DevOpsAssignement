@@ -44,9 +44,9 @@ tested before switching the UI to separate HTTPS origins.
 2. **Presence and authorization:** Game receives current authority/presence over
    authenticated HTTP rather than reading live Rooms tables. Frozen listener
    ownership remains unchanged. Each outbound request has a bounded timeout.
-3. **Completion/abort:** the durable Game result reconciles Rooms back to lobby
-   through an idempotent HTTP operation. An interrupted notification remains
-   retryable without changing revealed scores or applying completion twice.
+3. **Completion/abort:** Rooms polls the durable Game result over authenticated
+   HTTP, then reopens the matching lobby in its own transaction. Interrupted
+   calls can repeat without changing revealed scores or applying completion twice.
 4. **Search:** Rooms owns public catalog lookup and verifies/signs song facts.
    Game accepts only authenticated verified selections; moving the signer must
    preserve the existing room binding and expiry checks.
@@ -154,5 +154,42 @@ Real-process acceptance starts a game through Rooms without forwarding the
 snapshot in the test harness, on SQLite and SQL Server. Recovery tests use the
 real apps with an injected HTTP transport fault after Game commits; separate
 tests stub peer responses for deadline and Rooms confirmation failures. No
-Azure deployment or browser cutover is claimed. Completion, presence and
-lifecycle reconciliation remain the next milestone.
+Azure deployment or browser cutover is claimed.
+
+## HTTP lifecycle milestone — 2026-11-18
+
+The monolith still advances Game and reopens Rooms inside one SQLite transaction.
+The standalone services replace that assumption with three steps:
+
+1. Rooms samples live membership and host heartbeat times under its database
+   lock. Game never receives room credentials or reads live Rooms tables.
+2. After releasing the lock, Rooms sends presence to the authenticated Game
+   lifecycle endpoint. Game advances using its clock and persists the outcome.
+   Ready acknowledgements alone do not start the countdown in the split API.
+3. Rooms applies a terminal outcome only if the captured room revision and
+   Start identity still match the locked room. Applying it records the
+   reconciliation and reopens admission in one Rooms transaction. Only a
+   completed game renews retention, using the Game completion time.
+
+The Rooms worker runs every second between reconciliation passes when Game is
+configured. Members can also call `POST /api/rooms/{room_id}/game/sync`. Both
+paths replay a pending Start using the original frozen values and leave the lobby
+locked if the outcome is unavailable. For a migrated playing room without a
+Start record, the latest Game must match the room and its pre-lock revision.
+
+The host's explicit Leave names the game and a request ID. Game retains its
+receipt, so a retry cannot end a later game. For guests, a game-scoped Leave
+preserves their membership and frozen identity; a lobby-scoped Leave removes
+their membership and revokes their token. Host reconnect follows the 60-second
+grace period; a late heartbeat cannot renew an open game's grace. A Rooms restart
+preserves its pending work. Restarting the single Game process aborts its
+interrupted games with `server_restart`, preserving revealed scores. Rooms
+reconciles those results after the peer returns. This restart policy assumes one
+Game instance; rolling multi-instance restarts need a separate ownership policy.
+
+Real-process SQLite and SQL Server acceptance covers Start, host Leave and its
+replay, a second game, and the Rooms worker observing an independently ended
+Game. The fault tests run both real ASGI applications and inject only transport
+outages and lost replies. They also play a five-round match with a controlled
+clock to verify retention renewal exactly once. No cloud or browser deployment,
+audio-controller fencing, or cross-database expiry purge is exercised here.

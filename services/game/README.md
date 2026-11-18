@@ -30,10 +30,11 @@ trusted internal input, not public browser authentication. Production orchestrat
 must authenticate the room session and verify signed catalog selections before
 using these operations. Private audio manifests remain host-only.
 
-Timestamps come from the service clock inside the command lock. The extraction
-API has explicit phase advancement; the monolith still owns the complete browser
-loop, audio lease fencing, due-before-command behavior and restart reconciliation.
-Do not switch the UI to these routes until that orchestration is ported and tested.
+Timestamps come from Game's clock inside the command lock. The Rooms worker
+sends live presence and reconciles terminal results over authenticated HTTP.
+Restarting the single Game process aborts interrupted matches while preserving
+revealed scores. Rooms discovers the durable result after the restart. The
+monolith still owns the existing browser loop and audio lease fencing.
 
 The domain implementation is shared with the playable monolith by import, rather
 than copied. Test from the repository root with verification dependencies installed:

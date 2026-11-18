@@ -45,9 +45,10 @@ links, plus Game history, active state, round preparation and command receipts.
 Rooms startup seeds the current Demo catalog from the committed pack. The copy
 does not transfer runtime probes, database migration ledgers, provider caches,
 or external media files. Move any separately hosted media before redirecting
-traffic, and verify the clock and media paths before resuming an active game.
-Do not enable the split browser workflow until server-side lifecycle coordination
-is verified.
+traffic, and verify clocks and media paths. Game startup archives any transferred
+active match as an interrupted game while retaining revealed scores. Rooms
+reconciles that outcome before reopening the lobby. Do not enable the split
+browser workflow until the UI and deployment have been verified.
 
 For a rehearsal that never uses existing data, run
 `python -m tools.test_rooms_sqlserver`. It creates a disposable SQL Server,

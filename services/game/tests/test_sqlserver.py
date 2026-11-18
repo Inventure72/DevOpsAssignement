@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, contextmanager
 from copy import deepcopy
 
+import httpx
 import pymssql
 import pytest
 from fastapi.testclient import TestClient
@@ -20,8 +21,10 @@ from services.game.tests.test_api import start_payload
 from services.game.tests.test_api import (
     test_preparation_readiness_answer_and_reveal_use_server_time as play_round,
 )
+from services.rooms.app import create_app as create_rooms
 from services.rooms.domain import repository as rooms_repo
 from services.rooms.domain.service import RoomsService
+from services.rooms.game_client import GameClient
 from services.rooms.storage import RoomsDatabase
 from services.rooms.tests.test_api import admission
 from shared.development import ServiceConfig
@@ -304,3 +307,35 @@ def test_transfer_retries_after_second_target_rolls_back(tmp_path, rooms_db, gam
         assert GameService(repository=repo).start(
             conn, snapshot, settings, actor, command, 1_800_000_001_000
         ) == {"game_id": finished}
+
+    def clock():
+        return 1_800_000_100_000
+
+    token = "fixture-internal"
+    game_app = create_app(ServiceConfig(GAME_URL, token), clock=clock)
+    rooms_app = create_rooms(
+        ServiceConfig(ROOMS_URL, token),
+        clock=clock,
+        game_client=GameClient(
+            "https://game.test", token, transport=httpx.ASGITransport(app=game_app)
+        ),
+        lifecycle_interval=None,
+    )
+    with TestClient(game_app), TestClient(rooms_app) as room_client:
+        auth = {"Authorization": f"Bearer {host['token']}"}
+        result = room_client.post(f"/api/rooms/{rid}/game/sync", headers=auth)
+        assert result.status_code == 200, result.text
+        assert result.json()["game"] == {
+            "game_id": active,
+            "status": "aborted",
+            "ended_at_ms": clock(),
+            "end_reason": "server_restart",
+        }
+        assert (
+            room_client.get(f"/api/rooms/{rid}/lobby", headers=auth).json()["state"]
+            == "lobby"
+        )
+    with rooms_db.read() as conn:
+        assert rooms_repo.room(conn, rid)["last_completed_at_ms"] is None
+    with game_db.read() as conn:
+        assert repo.history(conn, rid)[1] == historic

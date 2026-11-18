@@ -173,7 +173,7 @@ def main():
                 "-x",
                 "services/rooms/tests/test_sqlserver.py",
                 "services/game/tests/test_sqlserver.py",
-                "tests/integration/test_service_processes.py::test_two_sql_server_service_processes_start_over_http",
+                "tests/integration/test_service_processes.py::test_two_sql_server_service_processes_reconcile_lifecycle",
             ],
             cwd=ROOT,
             env=test_env,

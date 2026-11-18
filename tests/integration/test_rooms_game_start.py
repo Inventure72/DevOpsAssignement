@@ -3,6 +3,7 @@
 import asyncio
 import json
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack
 from threading import Event
 
 import httpx
@@ -82,12 +83,14 @@ def test_recover_committed_game_after_lost_response_and_rooms_restart(tmp_path):
         return create_rooms(
             rooms_config,
             clock=lambda: now[0],
+            lifecycle_interval=None,
             game_client=GameClient(
                 GAME_URL, SERVICE_TOKEN, transport=httpx.MockTransport(forward_to_game)
             ),
         )
 
-    with TestClient(game_app) as game, TestClient(rooms_app()) as rooms:
+    with TestClient(game_app) as game, ExitStack() as rooms_process:
+        rooms = rooms_process.enter_context(TestClient(rooms_app()))
         host = add_host(rooms)
         guest_reply = join(rooms, host, "First guest")
         assert guest_reply.status_code == 201, guest_reply.text
@@ -112,8 +115,9 @@ def test_recover_committed_game_after_lost_response_and_rooms_restart(tmp_path):
         assert game_view.status_code == 200, game_view.text
         assert game_view.json()["phase"] == "setup"
 
-    now[0] += 2500
-    with TestClient(game_app) as game, TestClient(rooms_app()) as restarted:
+        rooms_process.close()
+        now[0] += 2500
+        restarted = rooms_process.enter_context(TestClient(rooms_app()))
         assert restarted.get("/health").status_code == 200
         pending_lobby = lobby(restarted, host)
         assert all(field not in pending_lobby for field in ("songs", "snapshot"))
@@ -167,7 +171,9 @@ def test_outbound_start_deadline_keeps_reservation_pending(tmp_path):
         timeout=0.05,
         transport=httpx.MockTransport(slow_reply),
     )
-    with TestClient(create_rooms(config, game_client=client)) as rooms:
+    with TestClient(
+        create_rooms(config, game_client=client, lifecycle_interval=None)
+    ) as rooms:
         host = add_host(rooms)
         assert join(rooms, host, "First guest").status_code == 201
         assert join(rooms, host, "Second guest").status_code == 201
@@ -195,7 +201,9 @@ def test_start_leaves_room_database_available_while_game_response_waits(tmp_path
         GAME_URL, SERVICE_TOKEN, transport=httpx.MockTransport(wait_for_release)
     )
     with (
-        TestClient(create_rooms(config, game_client=client)) as rooms,
+        TestClient(
+            create_rooms(config, game_client=client, lifecycle_interval=None)
+        ) as rooms,
         ThreadPoolExecutor(max_workers=1) as worker,
     ):
         host = add_host(rooms)
@@ -229,7 +237,7 @@ def test_start_recovers_after_rooms_confirmation_write_fails(tmp_path, monkeypat
     client = GameClient(
         GAME_URL, SERVICE_TOKEN, transport=httpx.MockTransport(game_accepts)
     )
-    app = create_rooms(config, game_client=client)
+    app = create_rooms(config, game_client=client, lifecycle_interval=None)
     confirm = app.state.db.transaction
     with TestClient(app) as rooms:
         host = add_host(rooms)
@@ -275,6 +283,7 @@ def test_reject_invalid_start_before_contacting_peer(
 
     app = create_rooms(
         config,
+        lifecycle_interval=None,
         clock=lambda: 1_800_000_000_000,
         game_client=GameClient(
             GAME_URL, SERVICE_TOKEN, transport=httpx.MockTransport(unexpected_request)

@@ -1,11 +1,12 @@
 """Shared standalone service API and explicit SQLite compatibility runtime."""
 
+import asyncio
 import hashlib
 import os
 import re
 import secrets
 import sqlite3
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager, contextmanager, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -122,7 +123,16 @@ class DevelopmentDatabase:
             conn.execute("DELETE FROM health_probe WHERE id=?", (identifier,))
 
 
-def service_app(name, config, migrations, *, required_tables, database=None):
+def service_app(
+    name,
+    config,
+    migrations,
+    *,
+    required_tables,
+    database=None,
+    after_initialize=None,
+    worker=None,
+):
     db = (
         database
         if database is not None
@@ -134,7 +144,16 @@ def service_app(name, config, migrations, *, required_tables, database=None):
     @asynccontextmanager
     async def lifespan(app):
         db.initialize()
-        yield
+        if after_initialize is not None:
+            after_initialize(db)
+        task = asyncio.create_task(worker()) if worker is not None else None
+        try:
+            yield
+        finally:
+            if task is not None:
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
 
     app = FastAPI(
         title=f"Who's On Repeat: {name}",

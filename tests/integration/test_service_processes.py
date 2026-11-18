@@ -93,16 +93,16 @@ def verify_process_start(tmp_path, database_urls):
             urls["rooms"], "/internal/rooms", payload=admission(), headers=headers
         )
         assert status == 201
+        guests = []
         for nickname in ("Guest 1", "Guest 2"):
-            assert (
-                request(
-                    urls["rooms"],
-                    f"/internal/rooms/{host['room_id']}/join",
-                    payload=admission(nickname),
-                    headers=headers,
-                )[0]
-                == 201
+            joined, guest = request(
+                urls["rooms"],
+                f"/internal/rooms/{host['room_id']}/join",
+                payload=admission(nickname),
+                headers=headers,
             )
+            assert joined == 201
+            guests.append(guest)
         room_auth = {"Authorization": f"Bearer {host['token']}"}
         lobby_status, lobby = request(
             urls["rooms"],
@@ -128,6 +128,70 @@ def verify_process_start(tmp_path, database_urls):
         ) == (200, started)
         game_path = f"/internal/games/{started['game_id']}?actor_id={host['player_id']}"
         assert request(urls["game"], game_path, headers=headers)[1]["phase"] == "setup"
+        room_path = f"/api/rooms/{host['room_id']}"
+        guest_auth = {"Authorization": f"Bearer {guests[0]['token']}"}
+        synchronized, active = request(
+            urls["rooms"], room_path + "/game/sync", headers=guest_auth, payload={}
+        )
+        assert synchronized == 200 and active["game"]["game_id"] == started["game_id"]
+        assert active["game"]["status"] == "preparing"
+        leave = {"request_id": "process-leave", "game_id": started["game_id"]}
+        assert request(
+            urls["rooms"], room_path + "/leave", headers=guest_auth, payload=leave
+        ) == (200, {"accepted": True})
+        assert request(
+            urls["rooms"], room_path + "/leave", headers=room_auth, payload=leave
+        ) == (200, {"accepted": True})
+        assert request(
+            urls["rooms"], room_path + "/leave", headers=room_auth, payload=leave
+        ) == (200, {"accepted": True})
+        assert (
+            request(urls["game"], game_path, headers=headers)[1]["phase"] == "finished"
+        )
+        assert request(
+            urls["rooms"], room_path + "/game/sync", headers=guest_auth, payload={}
+        ) == (200, {"game": None})
+        lobby_status, lobby = request(
+            urls["rooms"], room_path + "/lobby", headers=room_auth
+        )
+        assert (
+            lobby_status == 200
+            and lobby["state"] == "lobby"
+            and len(lobby["players"]) == 3
+        )
+        payload.update(room_revision=lobby["revision"], request_id="process-next-game")
+        status, restarted = request(
+            urls["rooms"], start_path, headers=room_auth, payload=payload
+        )
+        assert status == 200 and restarted["game_id"] != started["game_id"]
+        assert request(
+            urls["rooms"], room_path + "/leave", headers=room_auth, payload=leave
+        ) == (200, {"accepted": True})
+        synchronized, active = request(
+            urls["rooms"], room_path + "/game/sync", headers=guest_auth, payload={}
+        )
+        assert synchronized == 200 and active["game"]["game_id"] == restarted["game_id"]
+        ended, _ = request(
+            urls["game"],
+            f"/internal/games/{restarted['game_id']}/end",
+            headers=headers,
+            payload={
+                "actor_id": host["player_id"],
+                "request_id": "finish-without-rooms-command",
+            },
+        )
+        assert ended == 200
+        deadline = time.monotonic() + 6
+        while time.monotonic() < deadline:
+            lobby_status, lobby = request(
+                urls["rooms"], room_path + "/lobby", headers=room_auth
+            )
+            assert lobby_status == 200
+            if lobby["state"] == "lobby":
+                break
+            time.sleep(0.05)
+        else:
+            pytest.fail("Rooms worker did not recover the terminal Game outcome")
         stop(processes["rooms"])
         assert request(urls["game"], "/health")[0] == 200
         assert request(urls["game"], game_path, headers=headers)[0] == 200
@@ -147,7 +211,7 @@ def test_two_service_processes_own_data_and_peer_independent_health(tmp_path):
     }
 
 
-def test_two_sql_server_service_processes_start_over_http(tmp_path):
+def test_two_sql_server_service_processes_reconcile_lifecycle(tmp_path):
     database_urls = {
         name: os.environ.get(f"{name.upper()}_TEST_DATABASE_URL")
         for name in ("rooms", "game")
