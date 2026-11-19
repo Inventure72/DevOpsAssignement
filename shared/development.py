@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 
 from shared.contracts import ErrorResponse, Health
 from shared.errors import DomainError
+from shared.request_logging import RequestLog
 
 
 @dataclass(frozen=True)
@@ -186,6 +187,7 @@ def service_app(
             allow_methods=["GET", "POST"],
             allow_headers=["Authorization", "Content-Type"],
         )
+    app.add_middleware(RequestLog, service=name.lower(), routes=app.router.routes)
 
     @app.exception_handler(DomainError)
     async def domain_error(request, exc):

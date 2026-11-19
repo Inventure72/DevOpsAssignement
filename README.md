@@ -22,6 +22,12 @@ SQL Server 2022 container. The Rooms and Game APIs listen on
 `ROOMS_HOST_PORT` or `GAME_HOST_PORT` to change a local port. Compose binds
 all three to loopback and configures the matching UI origin automatically.
 
+Use `docker compose logs rooms game` to inspect API requests. Each line
+includes the service, method, route template, HTTP status and elapsed time in
+milliseconds. Parameters appear as placeholders such as `{room_id}`. An
+unrecognized path appears as `<unmatched>`. Request values and credentials
+are omitted.
+
 The one-off `db-init` service generates local credentials and a SQL TLS
 certificate in Docker volumes. It creates both databases and their scoped
 logins before either API starts. Each API mounts only its own connection

@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import secrets
 import socket
 import subprocess
@@ -63,12 +64,15 @@ def verify_process_start(tmp_path, database_urls):
             if name == "rooms":
                 environment["GAME_BASE_URL"] = urls["game"]
             log = stack.enter_context((tmp_path / f"{name}.log").open("w+"))
+            error_log = stack.enter_context(
+                (tmp_path / f"{name}.stderr.log").open("w+")
+            )
             process = subprocess.Popen(
                 [sys.executable, "-m", f"services.{name}"],
                 cwd=ROOT,
                 env=environment,
                 stdout=log,
-                stderr=subprocess.STDOUT,
+                stderr=error_log,
             )
             stack.callback(stop, process)
             processes[name] = process
@@ -76,9 +80,10 @@ def verify_process_start(tmp_path, database_urls):
             deadline = time.monotonic() + 15
             while True:
                 if process.poll() is not None or time.monotonic() >= deadline:
-                    log.flush()
                     pytest.fail(
-                        f"{name} failed to become ready: {(tmp_path / f'{name}.log').read_text()}"
+                        f"{name} failed to become ready\n"
+                        f"{(tmp_path / f'{name}.log').read_text()}\n"
+                        f"{(tmp_path / f'{name}.stderr.log').read_text()}"
                     )
                 try:
                     status, health = request(urls[name], "/health")
@@ -94,7 +99,8 @@ def verify_process_start(tmp_path, database_urls):
         )
         assert status == 201
         guests = []
-        for nickname in ("Guest 1", "Guest 2"):
+        body_marker = "test-body-" + secrets.token_hex(5)
+        for nickname in (body_marker, "Guest 2"):
             joined, guest = request(
                 urls["rooms"],
                 f"/internal/rooms/{host['room_id']}/join",
@@ -195,6 +201,52 @@ def verify_process_start(tmp_path, database_urls):
         stop(processes["rooms"])
         assert request(urls["game"], "/health")[0] == 200
         assert request(urls["game"], game_path, headers=headers)[0] == 200
+
+        query_marker = "test-query-" + secrets.token_hex(8)
+        path_marker = "test-path-" + secrets.token_hex(8)
+        header_marker = "test-header-" + secrets.token_hex(8)
+        assert (
+            request(
+                urls["game"],
+                f"/{path_marker}?search={query_marker}",
+                headers={"Authorization": f"Bearer {header_marker}"},
+            )[0]
+            == 404
+        )
+        assert (
+            request(
+                urls["game"], game_path, headers={"X-Service-Token": header_marker}
+            )[0]
+            == 401
+        )
+        stop(processes["game"])
+
+        stdout = {name: (tmp_path / f"{name}.log").read_text() for name in processes}
+        for owner, verb, path, status in (
+            ("rooms", "GET", "/api/rooms/{room_id}/lobby", 200),
+            ("rooms", "POST", "/internal/rooms/{room_id}/join", 201),
+            ("game", "POST", "/internal/games", 200),
+            ("game", "GET", "/internal/games/{game_id}", 401),
+            ("game", "GET", "<unmatched>", 404),
+        ):
+            prefix = f"service={owner} method={verb} path={path} status={status}"
+            assert re.search(
+                re.escape(prefix) + r" duration_ms=\d+\.\d{2}$", stdout[owner], re.M
+            )
+        for owner in processes:
+            output = stdout[owner] + (tmp_path / f"{owner}.stderr.log").read_text()
+            assert "HTTP Request:" not in output
+            for value in (
+                body_marker,
+                query_marker,
+                path_marker,
+                header_marker,
+                service_token,
+                host["token"],
+                host["room_id"],
+                started["game_id"],
+            ):
+                assert value not in output, f"{owner} log leaked a request value"
 
 
 def test_two_service_processes_own_data_and_peer_independent_health(tmp_path):
