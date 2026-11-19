@@ -1,4 +1,4 @@
-"""Rooms-only extraction API; provider/browser orchestration follows separately."""
+"""Rooms API for lobby admission, membership, Demo search and Game access."""
 
 import os
 import time
@@ -6,21 +6,37 @@ from pathlib import Path
 from threading import RLock
 from typing import Annotated, Literal
 
-from fastapi import Depends
+from fastapi import Depends, Query, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from pydantic import Field
 from starlette.concurrency import run_in_threadpool
 
 from services.rooms import bundled_demo
+from services.rooms.domain.demo import search_fixtures
 from services.rooms.domain.service import RoomsService
 from services.rooms.game_client import GameClient
 from services.rooms.lifecycle import LeaveRoom, LeftRoom, RoomGame, RoomLifecycle
 from services.rooms.start_flow import RoomStart, StartFlow
 from services.rooms.storage import REQUIRED_TABLES, RoomsDatabase
-from shared.contracts import Body, ListeningImport, RoomSnapshot, StartedGame
+from shared.browser_tokens import (
+    GAME_SESSION_SECONDS,
+    SELECTION_LIFETIME_MS,
+    BrowserTokens,
+    GameSession,
+    SongSelection,
+)
+from shared.contracts import (
+    Body,
+    GameID,
+    ListeningImport,
+    RoomSnapshot,
+    Song,
+    StartedGame,
+)
 from shared.development import ServiceConfig, service_app
 from shared.errors import DomainError
+from shared.recording_identity import normalized_words
 
 
 class PlayerIdentity(Body):
@@ -42,6 +58,21 @@ class AdmissionResult(Body):
     code: str
     player_id: str
     token: str
+
+
+class GameAccess(Body):
+    token: str
+    expires_in_seconds: int
+
+
+class SongChoice(Body):
+    title: str
+    artist: str
+    selection: str
+
+
+class SongChoices(Body):
+    songs: list[SongChoice]
 
 
 def create_app(
@@ -73,6 +104,7 @@ def create_app(
     lifecycle = RoomLifecycle(db, rooms, game_client, start_flow, clock)
     lock = RLock()
     bearer = HTTPBearer(auto_error=False)
+    browser_tokens = BrowserTokens(config.service_token)
 
     def token(auth: HTTPAuthorizationCredentials | None = Depends(bearer)):
         if auth is None:
@@ -86,6 +118,16 @@ def create_app(
             player_id=result["player"]["id"],
             token=result["token"],
         )
+
+    def game_member(conn, room_id, game_id, credential, now):
+        actor = rooms.authenticate(conn, room_id, credential, now)
+        receipt = conn.execute(
+            "SELECT game_id FROM room_start_operations WHERE room_id=? AND game_id=?",
+            (room_id, game_id),
+        ).fetchone()
+        if receipt is None or receipt["game_id"] != game_id:
+            raise DomainError("game_not_found", "Game not found in this room.", 404)
+        return actor
 
     @app.post("/api/rooms", status_code=201)
     def create_demo(payload: DemoAdmission) -> AdmissionResult:
@@ -186,6 +228,69 @@ def create_app(
     @app.post("/api/rooms/{room_id}/game/sync")
     async def sync_game(room_id: str, credential: str = Depends(token)) -> RoomGame:
         return await lifecycle.sync(room_id, credential)
+
+    @app.post("/api/rooms/{room_id}/games/{game_id}/session")
+    def game_access(
+        room_id: str,
+        game_id: GameID,
+        response: Response,
+        credential: str = Depends(token),
+    ) -> GameAccess:
+        now = clock()
+        with db.read() as conn:
+            actor = game_member(conn, room_id, game_id, credential, now)
+        claims = GameSession(
+            room_id=room_id,
+            game_id=game_id,
+            player_id=actor["id"],
+            expires_at_ms=now + GAME_SESSION_SECONDS * 1000,
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return GameAccess(
+            token=browser_tokens.issue(claims),
+            expires_in_seconds=GAME_SESSION_SECONDS,
+        )
+
+    @app.get("/api/rooms/{room_id}/games/{game_id}/songs")
+    def song_search(
+        room_id: str,
+        game_id: GameID,
+        response: Response,
+        q: Annotated[str, Query(min_length=1, max_length=80)],
+        credential: str = Depends(token),
+    ) -> SongChoices:
+        now = clock()
+        words = normalized_words(q).split()
+        with db.read() as conn:
+            actor = game_member(conn, room_id, game_id, credential, now)
+            if rooms.room(conn, room_id, now)["mode"] != "demo":
+                raise DomainError(
+                    "demo_required", "Search is available in Demo rooms.", 409
+                )
+            records = search_fixtures(conn)
+        songs = []
+        for record in records:
+            searchable = normalized_words(f"{record['title']} {record['artist']}")
+            if not words or not all(word in searchable for word in words):
+                continue
+            claims = SongSelection(
+                room_id=room_id,
+                game_id=game_id,
+                player_id=actor["id"],
+                expires_at_ms=now + SELECTION_LIFETIME_MS,
+                song=Song.model_validate(record),
+            )
+            songs.append(
+                SongChoice(
+                    title=claims.song.title,
+                    artist=claims.song.artist,
+                    selection=browser_tokens.issue(claims),
+                )
+            )
+            if len(songs) == 12:
+                break
+        response.headers["Cache-Control"] = "no-store"
+        return SongChoices(songs=songs)
 
     @app.post("/api/rooms/{room_id}/leave")
     async def leave(

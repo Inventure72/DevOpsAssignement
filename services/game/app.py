@@ -1,11 +1,12 @@
-"""Game-owned private API over validated frozen values and isolated storage."""
+"""Game API over validated frozen values and isolated storage."""
 
 import time
 from pathlib import Path
 from threading import RLock
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Response
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import Field
 
 from services.game.domain.repository import SqlServerGameRepository
@@ -13,8 +14,15 @@ from services.game.domain.service import GameService
 from services.game.domain.views import audio_manifest, game_view
 from services.game.lifecycle import abort_interrupted_games, reconcile_game
 from services.game.storage import REQUIRED_TABLES, GameDatabase
+from shared.browser_tokens import (
+    MAX_BROWSER_TOKEN_LENGTH,
+    BrowserTokens,
+    GameSession,
+    SongSelection,
+)
 from shared.contracts import (
     Body,
+    GameID,
     GameLifecycleReport,
     Identifier,
     ReconcileGame,
@@ -23,6 +31,7 @@ from shared.contracts import (
     StartGame,
 )
 from shared.development import ServiceConfig, service_app
+from shared.errors import DomainError
 
 
 class Actor(Body):
@@ -33,7 +42,8 @@ class Command(Actor):
     request_id: Identifier
 
 
-class Preload(Command):
+class BrowserPreload(Body):
+    request_id: Identifier
     candidate_id: Identifier
     ok: bool
     waveform: (
@@ -45,18 +55,33 @@ class Preload(Command):
     ) = None
 
 
+class Preload(BrowserPreload, Actor):
+    pass
+
+
 class Presence(Actor):
     host_connected: bool
     connected_player_ids: Annotated[list[str], Field(max_length=10)]
 
 
-class Ready(Actor):
+class BrowserReady(Body):
     readiness_generation: Annotated[int, Field(ge=1)]
+
+
+class Ready(BrowserReady, Actor):
+    pass
 
 
 class Answer(Actor):
     song_guess: Song | None = None
     who_player_ids: Annotated[list[str], Field(max_length=10)] = []
+
+
+class BrowserAnswer(Body):
+    song_selection: Annotated[
+        str | None, Field(max_length=MAX_BROWSER_TOKEN_LENGTH)
+    ] = None
+    who_player_ids: Annotated[list[Identifier], Field(max_length=10)] = []
 
 
 def create_app(config=None, *, clock=None, game=None):
@@ -79,6 +104,18 @@ def create_app(config=None, *, clock=None, game=None):
         after_initialize=lambda db: abort_interrupted_games(db, game, clock),
     )
     lock = RLock()
+    bearer = HTTPBearer(auto_error=False)
+    browser_tokens = BrowserTokens(config.service_token)
+
+    def game_session(
+        game_id: GameID, auth: HTTPAuthorizationCredentials | None = Depends(bearer)
+    ) -> GameSession:
+        if auth is None:
+            raise DomainError("invalid_game_session", "Reconnect to this game.", 401)
+        session = browser_tokens.decode(auth.credentials, GameSession)
+        if session.game_id != game_id or session.expires_at_ms <= clock():
+            raise DomainError("invalid_game_session", "Reconnect to this game.", 401)
+        return session
 
     @app.post(
         "/internal/games", dependencies=[Depends(internal)], response_model=StartedGame
@@ -182,6 +219,85 @@ def create_app(config=None, *, clock=None, game=None):
                 payload.actor_id,
                 payload.model_dump(exclude={"actor_id"}),
                 clock(),
+            )
+
+    @app.get("/api/games/{game_id}")
+    def browser_state(
+        game_id: GameID,
+        response: Response,
+        session: GameSession = Depends(game_session),
+    ) -> dict:
+        response.headers["Cache-Control"] = "no-store"
+        return {**state(game_id, session.player_id), "server_now_ms": clock()}
+
+    @app.get("/api/games/{game_id}/audio")
+    def browser_audio(
+        game_id: GameID,
+        response: Response,
+        session: GameSession = Depends(game_session),
+    ) -> dict:
+        response.headers["Cache-Control"] = "no-store"
+        return audio(game_id, session.player_id)
+
+    @app.post("/api/games/{game_id}/preload")
+    def browser_preload(
+        game_id: GameID,
+        payload: BrowserPreload,
+        session: GameSession = Depends(game_session),
+    ) -> dict:
+        return preload(
+            game_id, Preload(actor_id=session.player_id, **payload.model_dump())
+        )
+
+    @app.post("/api/games/{game_id}/rounds/{round_id}/ready")
+    def browser_ready(
+        game_id: GameID,
+        round_id: GameID,
+        payload: BrowserReady,
+        session: GameSession = Depends(game_session),
+    ) -> dict:
+        return ready(
+            game_id,
+            round_id,
+            Ready(
+                actor_id=session.player_id,
+                readiness_generation=payload.readiness_generation,
+            ),
+        )
+
+    @app.post("/api/games/{game_id}/rounds/{round_id}/answers")
+    def browser_answer(
+        game_id: GameID,
+        round_id: GameID,
+        payload: BrowserAnswer,
+        session: GameSession = Depends(game_session),
+    ) -> dict:
+        answer = {"song_guess": None, "who_player_ids": payload.who_player_ids}
+        if payload.song_selection is not None:
+            choice = browser_tokens.decode(payload.song_selection, SongSelection)
+            if (choice.room_id, choice.game_id, choice.player_id) != (
+                session.room_id,
+                game_id,
+                session.player_id,
+            ):
+                raise DomainError(
+                    "invalid_song_selection", "Choose a song from search."
+                )
+            answer["song_guess"] = choice.song.model_dump()
+            answer["_token_expires_ms"] = choice.expires_at_ms
+        with lock, db.transaction() as conn:
+            if (
+                conn.execute(
+                    "SELECT id FROM rounds WHERE game_id=? AND id=?",
+                    (game_id, round_id),
+                ).fetchone()
+                is None
+            ):
+                raise DomainError(
+                    "stale_attempt", "This round attempt is no longer current.", 409
+                )
+            return game.answer(
+                conn, game_id, round_id, session.player_id, answer, clock()
             )
 
     return app

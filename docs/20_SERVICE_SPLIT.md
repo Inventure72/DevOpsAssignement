@@ -29,9 +29,13 @@ not directly from an anonymous browser. Exporting a snapshot also authenticates
 the host's room credential. Health, public room-code lookup and authenticated
 lobby views do not return credentials, private song pools or snapshots.
 
-The existing cookie-based browser contract remains in the monolith during this
-checkpoint. The split browser authentication contract must be implemented and
-tested before switching the UI to separate HTTPS origins.
+The monolith keeps its existing cookie-based browser contract. The split UI
+keeps a separate Rooms bearer per tab to join, maintain presence and Start.
+Rooms validates current membership and the room's confirmed Start receipt
+before issuing a 60-second Game bearer for a single player and game. Game
+validates that credential and the frozen roster locally. A previously issued
+credential can be used until it expires when Rooms is temporarily unavailable.
+It gives no access to another game or to an internal endpoint.
 
 ## Cross-service workflows
 
@@ -155,6 +159,21 @@ snapshot in the test harness, on SQLite and SQL Server. Recovery tests use the
 real apps with an injected HTTP transport fault after Game commits; separate
 tests stub peer responses for deadline and Rooms confirmation failures. No
 Azure deployment or browser cutover is claimed.
+
+## Static browser UI milestone — 2026-11-19
+
+`ui/` is served by stock nginx in Compose. The generated `/config.js` contains
+only the public Rooms and Game origins. Both APIs allow the exact UI origin
+through CORS without cookies. The browser keeps its room credential in tab
+session storage and holds the shorter-lived Game credential in memory.
+
+The host fetches and decodes the original clips against the Rooms origin and
+reports readiness to Game. Game releases the audio manifest only to the
+authenticated host. Rooms searches the shared Demo catalog without disclosing
+the private listening assignments. Its signed selection binds the recording
+metadata to the room, game and player. Game verifies that signature, checks
+expiry and scores against the frozen snapshot. Existing trusted internal
+requests continue to use the process service token.
 
 ## HTTP lifecycle milestone — 2026-11-18
 

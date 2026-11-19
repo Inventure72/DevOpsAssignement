@@ -9,8 +9,10 @@ import sqlite3
 from contextlib import asynccontextmanager, contextmanager, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Header
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from shared.contracts import ErrorResponse, Health
@@ -22,6 +24,7 @@ class ServiceConfig:
     database_url: str = field(repr=False)
     service_token: str = field(default="", repr=False)
     version: str = "development"
+    ui_origin: str = ""
 
     @classmethod
     def from_env(cls, name, *, default_database_url=None):
@@ -34,6 +37,7 @@ class ServiceConfig:
             ),
             os.environ.get("SERVICE_TOKEN", ""),
             os.environ.get("GIT_SHA", "development"),
+            os.environ.get("UI_ORIGIN", ""),
         )
 
 
@@ -164,6 +168,24 @@ def service_app(
         },
     )
     app.state.db = db
+    if config.ui_origin:
+        origin = urlsplit(config.ui_origin)
+        if (
+            origin.scheme not in {"http", "https"}
+            or not origin.hostname
+            or origin.netloc != origin.netloc.lower()
+            or config.ui_origin != f"{origin.scheme}://{origin.netloc}"
+            or origin.username is not None
+            or "*" in origin.netloc
+            or any(char.isspace() or char == "\\" for char in config.ui_origin)
+        ):
+            raise ValueError("UI_ORIGIN must be one exact HTTP(S) origin")
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=[config.ui_origin],
+            allow_methods=["GET", "POST"],
+            allow_headers=["Authorization", "Content-Type"],
+        )
 
     @app.exception_handler(DomainError)
     async def domain_error(request, exc):

@@ -293,6 +293,25 @@
         "title": "FrozenSong",
         "type": "object"
       },
+      "GameAccess": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_in_seconds": {
+            "title": "Expires In Seconds",
+            "type": "integer"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "expires_in_seconds"
+        ],
+        "title": "GameAccess",
+        "type": "object"
+      },
       "GameOutcome": {
         "additionalProperties": false,
         "properties": {
@@ -828,6 +847,47 @@
         "title": "Song",
         "type": "object"
       },
+      "SongChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "artist": {
+            "title": "Artist",
+            "type": "string"
+          },
+          "selection": {
+            "title": "Selection",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "artist",
+          "selection"
+        ],
+        "title": "SongChoice",
+        "type": "object"
+      },
+      "SongChoices": {
+        "additionalProperties": false,
+        "properties": {
+          "songs": {
+            "items": {
+              "$ref": "#/components/schemas/SongChoice"
+            },
+            "title": "Songs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "songs"
+        ],
+        "title": "SongChoices",
+        "type": "object"
+      },
       "StartedGame": {
         "additionalProperties": false,
         "properties": {
@@ -1228,6 +1288,265 @@
           }
         ],
         "summary": "Sync Game"
+      }
+    },
+    "/api/rooms/{room_id}/games/{game_id}/session": {
+      "post": {
+        "operationId": "game_access_api_rooms__room_id__games__game_id__session_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "room_id",
+            "required": true,
+            "schema": {
+              "title": "Room Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "game_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{32}$",
+              "title": "Game Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameAccess"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Game Access"
+      }
+    },
+    "/api/rooms/{room_id}/games/{game_id}/songs": {
+      "get": {
+        "operationId": "song_search_api_rooms__room_id__games__game_id__songs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "room_id",
+            "required": true,
+            "schema": {
+              "title": "Room Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "game_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{32}$",
+              "title": "Game Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 80,
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SongChoices"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gone"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Song Search"
       }
     },
     "/api/rooms/{room_id}/heartbeat": {

@@ -2,7 +2,7 @@
 
 A music party game: listen to a song, guess its title and identify which players listen to it. Each player answers on their own screen; the **host plays the audio**.
 
-## Assignment 2 local API stack
+## Assignment 2 local Demo
 
 With Docker and Compose installed, run this from the repository root:
 
@@ -10,11 +10,17 @@ With Docker and Compose installed, run this from the repository root:
 docker compose up --build
 ```
 
+Open **http://127.0.0.1:8080** in a modern browser. Create a room and share the
+invite link with two other browser sessions on this computer. Each player can
+join from a separate tab. The host clicks **Start game** to enable audio, and
+everyone submits answers on their own screen.
+
 On Apple Silicon, enable Rosetta emulation in Docker Desktop for the
 SQL Server 2022 container. The Rooms and Game APIs listen on
 `http://127.0.0.1:8001` and `http://127.0.0.1:8002`; each has a
-`/health` endpoint that checks its own database. Set `ROOMS_HOST_PORT` or
-`GAME_HOST_PORT` if a host port is already in use.
+`/health` endpoint that checks its own database. Set `UI_HOST_PORT`,
+`ROOMS_HOST_PORT` or `GAME_HOST_PORT` to change a local port. Compose binds
+all three to loopback and configures the matching UI origin automatically.
 
 The one-off `db-init` service generates local credentials and a SQL TLS
 certificate in Docker volumes. It creates both databases and their scoped
@@ -26,12 +32,13 @@ together so the existing logins still match on the next start.
 
 The Rooms API includes a [bundled Demo catalog](catalog/bundled_demo/README.md)
 and assigns listening libraries on the server. Demo admission and media work
-without an external pack or a provider account. The split UI is still pending;
-use the legacy launcher below to play the original monolith.
+without an external pack or a provider account.
 
-## Run
+## Assignment 1 legacy launcher
 
-**For assessment, use Demo.** It includes 100 real song previews and simulated listening libraries. No Spotify account or API keys are needed, and you can test it by yourself in two browser sessions.
+The legacy Demo includes 100 song previews and simulated listening libraries.
+No Spotify account or API keys are needed, and you can test it by yourself in two
+browser sessions.
 
 You need **Python 3.12+**, a modern browser and internet access for the first setup. From the project folder, run:
 

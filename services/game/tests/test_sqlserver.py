@@ -28,6 +28,7 @@ from services.rooms.game_client import GameClient
 from services.rooms.storage import RoomsDatabase
 from services.rooms.tests.test_api import admission
 from shared.development import ServiceConfig
+from tests.integration.test_split_browser_api import exercise_split_browser_api
 from tests.support.sqlserver import guarded_database
 from tools.transfer_assignment1 import TransferError, transfer
 
@@ -63,6 +64,10 @@ def rooms_db():
             rooms_repo.delete_room(conn, room["id"])
         conn.execute("DROP TABLE IF EXISTS dbo.assignment1_transfer")
     return database
+
+
+def test_split_browser_api_with_scoped_logins(rooms_db, game_db):
+    exercise_split_browser_api(ROOMS_URL, GAME_URL)
 
 
 def test_game_timed_round_and_owned_constraints(game_db):

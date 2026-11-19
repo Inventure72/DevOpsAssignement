@@ -52,6 +52,7 @@ services:
     environment:
       PORT: "8001"
       GAME_BASE_URL: "http://game:8002"
+      UI_ORIGIN: "http://127.0.0.1:${UI_HOST_PORT:-8080}"
       GIT_SHA: "${GIT_SHA:-development}"
     ports:
       - "127.0.0.1:${ROOMS_HOST_PORT:-8001}:8001"
@@ -71,6 +72,7 @@ services:
         condition: service_completed_successfully
     environment:
       PORT: "8002"
+      UI_ORIGIN: "http://127.0.0.1:${UI_HOST_PORT:-8080}"
       GIT_SHA: "${GIT_SHA:-development}"
     ports:
       - "127.0.0.1:${GAME_HOST_PORT:-8002}:8002"
@@ -78,6 +80,22 @@ services:
       - game-config:/run/repeat/game:ro
     healthcheck: *api-health
     networks: [database, application]
+
+  ui:
+    image: nginx:1.28-alpine
+    environment:
+      ROOMS_HOST_PORT: "${ROOMS_HOST_PORT:-8001}"
+      GAME_HOST_PORT: "${GAME_HOST_PORT:-8002}"
+    ports:
+      - "127.0.0.1:${UI_HOST_PORT:-8080}:8080"
+    volumes:
+      - ./ui:/usr/share/nginx/html:ro
+      - ./deploy/local-ui.conf.template:/etc/nginx/templates/default.conf.template:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
 
 networks:
   application:

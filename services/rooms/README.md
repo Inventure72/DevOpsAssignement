@@ -88,6 +88,14 @@ public routes reject client-supplied imports. Resolve a lobby code through
 Demo previews are served by Rooms. A browser hosted on a different origin
 must resolve each relative media path against the Rooms base URL.
 
+With a room bearer token, post to
+`/api/rooms/{room_id}/games/{game_id}/session` to obtain a 60-second Game
+credential for the current player and a Game confirmed by that room.
+`GET /api/rooms/{room_id}/games/{game_id}/songs?q=...` searches the shared
+Demo catalog and signs the selected metadata for that game and player.
+Neither response includes the service credential or room listening facts.
+Use `UI_ORIGIN` to allow a single exact browser origin in CORS.
+
 Trusted imports and snapshot routes require `X-Service-Token`. Snapshot export
 also requires the host's room credential. Public lobby/heartbeat operations use
 `Authorization: Bearer <room credential>`. Public lobby output excludes listening
