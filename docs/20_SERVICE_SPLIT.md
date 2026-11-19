@@ -212,3 +212,52 @@ Game. The fault tests run both real ASGI applications and inject only transport
 outages and lost replies. They also play a five-round match with a controlled
 clock to verify retention renewal exactly once. No cloud or browser deployment,
 audio-controller fencing, or cross-database expiry purge is exercised here.
+
+## Clean-clone acceptance — 2026-11-19
+
+A clean archive of `8179fbaa191160c113e27de143fd4f572aad11a3` ran with
+`docker compose up --build`, a fresh SQL Server volume, and three separate
+Playwright tab sessions. Each player had a distinct room credential. The guests
+joined through the copied invite, the host started the five-round Demo, and all
+15 submissions returned HTTP 200 with answer receipts. Each session showed the
+same reveals and standings and returned to the original lobby.
+
+| Round | Revealed song | Host points | Kai points | Mira points |
+| --- | --- | ---: | ---: | ---: |
+| 1 | Paper Satellites | 0 | 33 | 0 |
+| 2 | After the Ferry | 126 | 50 | 0 |
+| 3 | Cloud Receipt | 0 | 33 | 0 |
+| 4 | Dusky Terminal | 0 | 50 | 0 |
+| 5 | Green Hourglass | 100 | 0 | 100 |
+| **Total** | | **226** | **166** | **100** |
+
+Game's SQL database contained five revealed rounds, 15 submitted answers and
+the matching final scores. Rooms recorded completion, renewed retention and
+reopened the lobby. Each browser renewed its short-lived Game credential
+twice. There were no browser console errors or internal service requests.
+
+The host requested 20 clips and played five. A Web Audio analyser sampled the
+live playback source for each round. Peak amplitudes ranged from 0.664 to 0.669
+of full scale, and neither guest started a playback source. Physical speaker
+output remains unverified.
+
+The [browser API integration test](../tests/integration/test_split_browser_api.py)
+forces the countdown past its deadline with the Rooms worker disabled. It
+compares all six owned tables from each database before and after the public
+lobby, state and audio GETs. Rows remain identical. A subsequent
+`POST /game/sync` advances the countdown to answering and changes only the Game
+match and round rows. The same test runs on SQLite and real SQL Server through
+`python -m tools.test_rooms_sqlserver`.
+
+The two outage checks stopped and restarted the actual API containers:
+
+- **Game stopped.** Rooms health and authenticated lobby reads returned 200.
+  Start returned `game_start_pending` (503 after 234 ms). Sync returned
+  `game_lifecycle_unavailable` (503 after 52 ms). The reserved room stayed
+  locked. After restart, retrying the original Start twice returned the same
+  Game ID.
+- **Rooms stopped.** The Rooms connection failed in 1 ms. Game health, state
+  and host audio remained available with the existing Game credential, while
+  new credentials could not be issued. After restart, the same room session
+  synchronized the same Game ID and obtained a fresh credential. Ending the
+  test match returned the room to the lobby.

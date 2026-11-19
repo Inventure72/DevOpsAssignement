@@ -6,8 +6,10 @@ import httpx
 from fastapi.testclient import TestClient
 
 from services.game.app import create_app as create_game
+from services.game.storage import REQUIRED_TABLES as GAME_TABLES
 from services.rooms.app import create_app as create_rooms
 from services.rooms.game_client import GameClient
+from services.rooms.storage import REQUIRED_TABLES as ROOM_TABLES
 from shared.development import ServiceConfig
 
 ORIGIN = "https://ui.test"
@@ -22,6 +24,17 @@ def request(client, verb, path, status=200, **kwargs):
     result = client.request(verb, path, **kwargs)
     assert result.status_code == status, (verb, path, result.status_code, status)
     return result
+
+
+def stored_rows(client, tables):
+    with client.app.state.db.read() as conn:
+        return {
+            table: {
+                tuple(dict(row).items())
+                for row in conn.execute(f"SELECT * FROM {table}")
+            }
+            for table in tables
+        }
 
 
 def test_split_browser_sessions_audio_and_scoring(tmp_path):
@@ -193,12 +206,39 @@ def exercise_split_browser_api(rooms_url, game_url):
                 json={"readiness_generation": attempt["readiness_generation"]},
             )
         request(rooms, "POST", base + "/game/sync", headers=room_headers[0])
-        now += 3000
+        countdown = request(game, "GET", game_path, headers=game_headers[0]).json()
+        assert countdown["phase"] == "countdown"
+        now = countdown["phase_ends_at_ms"] + 1
+        room_rows = stored_rows(rooms, ROOM_TABLES)
+        game_rows = stored_rows(game, GAME_TABLES)
+
+        # The countdown is overdue. GETs must still project the stored state.
+        assert (
+            request(rooms, "GET", base + "/lobby", headers=room_headers[0]).json()[
+                "state"
+            ]
+            == "playing"
+        )
+        overdue = request(game, "GET", game_path, headers=game_headers[0]).json()
+        assert overdue["phase"] == "countdown"
+        assert overdue["server_now_ms"] > overdue["phase_ends_at_ms"]
+        assert (
+            request(game, "GET", game_path + "/audio", headers=game_headers[0]).json()
+            == manifest.json()
+        )
+        assert stored_rows(rooms, ROOM_TABLES) == room_rows
+        assert stored_rows(game, GAME_TABLES) == game_rows
+
         request(rooms, "POST", base + "/game/sync", headers=room_headers[0])
         assert (
             request(game, "GET", game_path, headers=game_headers[1]).json()["phase"]
             == "answering"
         )
+        assert stored_rows(rooms, ROOM_TABLES) == room_rows
+        advanced = stored_rows(game, GAME_TABLES)
+        assert {
+            table for table in GAME_TABLES if advanced[table] != game_rows[table]
+        } == {"games", "rounds"}
         entry = request(
             rooms,
             "GET",
