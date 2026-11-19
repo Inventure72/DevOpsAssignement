@@ -2,6 +2,31 @@
 
 A music party game: listen to a song, guess its title and identify which players listen to it. Each player answers on their own screen; the **host plays the audio**.
 
+## Assignment 2 local API stack
+
+With Docker and Compose installed, run this from the repository root:
+
+```sh
+docker compose up --build
+```
+
+On Apple Silicon, enable Rosetta emulation in Docker Desktop for the
+SQL Server 2022 container. The Rooms and Game APIs listen on
+`http://127.0.0.1:8001` and `http://127.0.0.1:8002`; each has a
+`/health` endpoint that checks its own database. Set `ROOMS_HOST_PORT` or
+`GAME_HOST_PORT` if a host port is already in use.
+
+The one-off `db-init` service generates local credentials and a SQL TLS
+certificate in Docker volumes. It creates both databases and their scoped
+logins before either API starts. Each API mounts only its own connection
+configuration. SQL Server has no published port. No `.env` file, host Python
+environment or database setup command is needed. `docker compose down` stops
+the stack and keeps its volumes; keep the database and configuration volumes
+together so the existing logins still match on the next start.
+
+This checkpoint runs the two APIs. For the existing playable monolith, use the
+launcher below while the bundled media and split UI are being added.
+
 ## Run
 
 **For assessment, use Demo.** It includes 100 real song previews and simulated listening libraries. No Spotify account or API keys are needed, and you can test it by yourself in two browser sessions.
