@@ -56,9 +56,9 @@ A session application lock serializes migration initialization; each migration's
 DDL and SHA-256 receipt commit together. Before applying any pending migration,
 startup verifies that the receipts match the ordered files and their hashes.
 Corrections require a new migration.
-The Demo metadata catalog is validated and replaced transactionally from the
-committed `catalog/demo_catalog.json`; room-owned song copies are preserved.
-No media download is performed by this API.
+The [bundled Demo metadata and audio](../../catalog/bundled_demo/README.md) are
+validated at startup. Rooms replaces the shared catalog transactionally while
+preserving room-owned song copies. No media download is needed.
 
 `GET /health` reads every required Rooms table and verifies write/read/delete in
 the service's own database. Missing tables or failed probes return 503. Startup
@@ -77,6 +77,16 @@ mutation by reading tables in a different order. The health probe does not take
 this application lock.
 
 ## API and compatibility scope
+
+To start a Demo lobby, post `{"nickname":"Host"}` to `/api/rooms`. A guest
+can post `{"nickname":"Guest"}` to `/api/rooms/{room_id}/join`. Both
+endpoints return a room-scoped player token and accept optional
+`character_id`. Rooms assigns the imported listening facts itself; these
+public routes reject client-supplied imports. Resolve a lobby code through
+`GET /api/room-codes/{code}`.
+
+Demo previews are served by Rooms. A browser hosted on a different origin
+must resolve each relative media path against the Rooms base URL.
 
 Trusted imports and snapshot routes require `X-Service-Token`. Snapshot export
 also requires the host's room credential. Public lobby/heartbeat operations use

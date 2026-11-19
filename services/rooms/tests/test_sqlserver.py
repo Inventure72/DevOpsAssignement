@@ -74,7 +74,7 @@ def test_migrations_seed_repeat_and_scoped_login(db):
             "002_start_operations.sql",
             "003_reconcile_start.sql",
         ]
-        assert len(catalog) == 100
+        assert len(catalog) == 48
         assert (
             conn.execute(
                 "SELECT COUNT(*) AS n FROM sys.tables WHERE name IN ('games','rounds','answers')"
@@ -292,8 +292,7 @@ def test_constraints_membership_deletion_expiry_and_rollback(db):
         assert repository.room(conn, rid) is None
         assert repository.room(conn, other["room"]["id"])
         assert (
-            conn.execute("SELECT COUNT(*) AS n FROM demo_catalog").fetchone()["n"]
-            == 100
+            conn.execute("SELECT COUNT(*) AS n FROM demo_catalog").fetchone()["n"] == 48
         )
 
 

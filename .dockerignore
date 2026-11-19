@@ -19,7 +19,10 @@
 !services/game/migrations/
 !services/game/migrations/*.sql
 !catalog/
-!catalog/demo_catalog.json
+!catalog/bundled_demo/
+!catalog/bundled_demo/demo_catalog.json
+!catalog/bundled_demo/clips/
+!catalog/bundled_demo/clips/*.mp3
 !tools/
 !tools/__init__.py
 !tools/compose_bootstrap.py

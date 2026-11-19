@@ -8,9 +8,11 @@ from typing import Annotated, Literal
 
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.staticfiles import StaticFiles
 from pydantic import Field
 from starlette.concurrency import run_in_threadpool
 
+from services.rooms import bundled_demo
 from services.rooms.domain.service import RoomsService
 from services.rooms.game_client import GameClient
 from services.rooms.lifecycle import LeaveRoom, LeftRoom, RoomGame, RoomLifecycle
@@ -21,11 +23,18 @@ from shared.development import ServiceConfig, service_app
 from shared.errors import DomainError
 
 
-class Admission(Body):
+class PlayerIdentity(Body):
     nickname: Annotated[str, Field(min_length=1, max_length=24)]
     character_id: str = "coral"
+
+
+class Admission(PlayerIdentity):
     mode: Literal["demo", "normal"] = "demo"
     imported: ListeningImport
+
+
+class DemoAdmission(PlayerIdentity):
+    mode: Literal["demo"] = "demo"
 
 
 class AdmissionResult(Body):
@@ -53,6 +62,7 @@ def create_app(
         Path(__file__).parent / "development",
         required_tables=REQUIRED_TABLES,
         database=database,
+        after_initialize=bundled_demo.initialize if database is None else None,
         worker=(lambda: lifecycle.run(lifecycle_interval))
         if game_client is not None and lifecycle_interval is not None
         else None,
@@ -76,6 +86,38 @@ def create_app(
             player_id=result["player"]["id"],
             token=result["token"],
         )
+
+    @app.post("/api/rooms", status_code=201)
+    def create_demo(payload: DemoAdmission) -> AdmissionResult:
+        with lock, db.transaction() as conn:
+            imported = bundled_demo.listening_import(conn, include_decoys=True)
+            return admitted(
+                rooms.create(
+                    conn,
+                    payload.nickname,
+                    payload.character_id,
+                    "demo",
+                    clock(),
+                    imported=imported,
+                )
+            )
+
+    @app.post("/api/rooms/{room_id}/join", status_code=201)
+    def join_demo(room_id: str, payload: DemoAdmission) -> AdmissionResult:
+        with lock, db.transaction() as conn:
+            now = clock()
+            if rooms.room(conn, room_id, now)["mode"] != "demo":
+                raise DomainError("music_source_mismatch", "Room mode differs", 409)
+            return admitted(
+                rooms.join(
+                    conn,
+                    room_id,
+                    payload.nickname,
+                    payload.character_id,
+                    now,
+                    imported=bundled_demo.listening_import(conn),
+                )
+            )
 
     @app.post("/internal/rooms", status_code=201, dependencies=[Depends(internal)])
     def create(payload: Admission) -> AdmissionResult:
@@ -170,6 +212,11 @@ def create_app(
                 )
             return RoomSnapshot.model_validate(rooms.snapshot(conn, room_id))
 
+    app.mount(
+        bundled_demo.MEDIA_PATH,
+        StaticFiles(directory=bundled_demo.CLIPS),
+        name="bundled-demo-media",
+    )
     return app
 
 

@@ -282,8 +282,7 @@ def test_transfer_retries_after_second_target_rolls_back(tmp_path, rooms_db, gam
             == actor
         )
         assert (
-            conn.execute("SELECT COUNT(*) AS n FROM demo_catalog").fetchone()["n"]
-            == 100
+            conn.execute("SELECT COUNT(*) AS n FROM demo_catalog").fetchone()["n"] == 48
         )
     copied = transfer(path, rooms_db, game_db)
     assert (copied["rooms"], copied["game"]) == ("already_copied", "copied")

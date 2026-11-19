@@ -13,7 +13,8 @@ COPY services/__init__.py services/
 COPY services/rooms/*.py services/rooms/
 COPY services/rooms/domain/*.py services/rooms/domain/
 COPY services/rooms/migrations/*.sql services/rooms/migrations/
-COPY catalog/demo_catalog.json catalog/
+COPY catalog/bundled_demo/demo_catalog.json catalog/bundled_demo/
+COPY catalog/bundled_demo/clips/*.mp3 catalog/bundled_demo/clips/
 COPY tools/__init__.py tools/compose_bootstrap.py tools/setup_rooms_db.py tools/
 COPY db/init.sql db/
 

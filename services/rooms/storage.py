@@ -3,6 +3,7 @@
 import logging
 from pathlib import Path
 
+from services.rooms import bundled_demo
 from services.rooms.domain.demo import seed_demo
 from shared.sqlserver import SqlServerDatabase
 
@@ -25,13 +26,11 @@ class RoomsDatabase(SqlServerDatabase):
             migrations=migrations or Path(__file__).parent / "migrations",
             required_tables=REQUIRED_TABLES,
         )
-        self.seed = (
-            Path(seed)
-            if seed
-            else Path(__file__).resolve().parents[2] / "catalog/demo_catalog.json"
-        )
+        self.seed = Path(seed) if seed else bundled_demo.CATALOG
 
     def initialize(self):
+        if self.seed == bundled_demo.CATALOG:
+            bundled_demo.validate_media()
         super().initialize()
         with self.transaction() as conn:
             seed_demo(conn, self.seed)

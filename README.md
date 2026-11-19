@@ -24,8 +24,10 @@ environment or database setup command is needed. `docker compose down` stops
 the stack and keeps its volumes; keep the database and configuration volumes
 together so the existing logins still match on the next start.
 
-This checkpoint runs the two APIs. For the existing playable monolith, use the
-launcher below while the bundled media and split UI are being added.
+The Rooms API includes a [bundled Demo catalog](catalog/bundled_demo/README.md)
+and assigns listening libraries on the server. Demo admission and media work
+without an external pack or a provider account. The split UI is still pending;
+use the legacy launcher below to play the original monolith.
 
 ## Run
 
