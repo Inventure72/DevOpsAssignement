@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fffefa">
+  <title>Who’s On Repeat?</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/config.js"></script>
+  <script type="module" src="/app.mjs"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to game</a>
+  <header class="header">
+    <a class="brand" href="/" aria-label="Who’s On Repeat? Home">who’s<br>on repeat?</a>
+  </header>
+  <main id="main" tabindex="-1">
+    <div class="status" id="status" role="status" hidden></div>
+    <section class="screen" id="entry">
+      <div class="intro">
+        <h1>Who’s On Repeat?</h1>
+        <p>Guess the song and which friends have it on repeat. The host plays the clips for everyone.</p>
+      </div>
+      <div class="entry-grid" id="entry-options">
+        <form id="create-form" class="card" aria-labelledby="create-title">
+          <h2 id="create-title">Create a room</h2>
+          <label for="create-name">Nickname</label>
+          <input id="create-name" name="nickname" maxlength="24" autocomplete="nickname" required>
+          <button type="submit" class="primary">Create Demo room</button>
+        </form>
+        <form id="join-form" class="card" aria-labelledby="join-title">
+          <h2 id="join-title">Join a room</h2>
+          <label for="join-code">Room code</label>
+          <input id="join-code" name="code" maxlength="6" minlength="6" autocomplete="off" spellcheck="false" autocapitalize="characters" required>
+          <label for="join-name">Nickname</label>
+          <input id="join-name" name="nickname" maxlength="24" autocomplete="nickname" required>
+          <button type="submit" class="primary">Join room</button>
+        </form>
+      </div>
+    </section>
+    <section class="screen" id="lobby" hidden>
+      <div class="intro">
+        <h1 id="lobby-title" tabindex="-1">Lobby</h1>
+        <p class="muted" id="lobby-status"></p>
+      </div>
+      <div class="card">
+        <div class="spread">
+          <h2>Players</h2>
+          <span class="room-code" id="room-code"></span>
+        </div>
+        <ul class="roster" id="roster"></ul>
+        <div class="button-row">
+          <button id="copy-invite" type="button">Copy invite link</button>
+          <button id="start" type="button" class="primary" hidden>Start game</button>
+        </div>
+        <input id="invite-link" aria-label="Invite link" readonly hidden>
+      </div>
+      <button class="quiet" id="leave-room" type="button">Leave room</button>
+    </section>
+    <section class="screen" id="game" hidden>
+      <div class="intro">
+        <h1 id="game-title" tabindex="-1">Get ready</h1>
+        <p id="game-status" role="status"></p>
+      </div>
+      <div class="card" id="audio-controls" hidden>
+        <div class="spread">
+          <p>Your device plays the clips for everyone.</p>
+          <button id="enable-audio" type="button">Enable audio</button>
+        </div>
+      </div>
+      <div class="card" id="guess-panel" hidden>
+        <form id="search-form">
+          <label for="song-query">Find the song</label>
+          <div class="search">
+            <input name="query" id="song-query" type="search" maxlength="80" autocomplete="off">
+            <button type="submit">Search</button>
+          </div>
+        </form>
+        <p id="search-status" class="muted" role="status"></p>
+        <fieldset id="song-results" hidden>
+          <legend>Song results</legend>
+          <div id="songs"></div>
+        </fieldset>
+        <form id="answer-form">
+          <fieldset>
+            <legend>Who listens to it?</legend>
+            <div id="listeners"></div>
+          </fieldset>
+          <button type="submit" class="primary">Submit answer</button>
+        </form>
+      </div>
+      <div class="card" id="reveal-panel" hidden>
+        <h2 id="revealed-song"></h2>
+        <p id="revealed-listeners"></p>
+        <p id="revealed-points"></p>
+      </div>
+      <div class="card" id="score-panel" hidden>
+        <h2>Scores</h2>
+        <ol class="roster" id="scores"></ol>
+      </div>
+      <div class="button-row">
+        <button type="button" class="primary" id="back-to-lobby" hidden>Back to lobby</button>
+        <button type="button" class="quiet" id="leave-game" hidden>Leave game</button>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

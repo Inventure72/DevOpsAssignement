@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 
 from backend.app import create_app
 from tests.support.demo import demo_config
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from backend.music.media import matches_recording
 
 

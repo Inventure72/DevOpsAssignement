@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from backend.rooms.demo import seed_demo
-from backend.rooms.service import RoomsService
+from services.rooms.domain.demo import seed_demo
+from services.rooms.domain.service import RoomsService
 from backend.storage.database import Database
 from tests.support.demo import prepared_demo_import
 

@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse
 
 from backend.api.cookies import issue_cookie
 from backend.api.schemas import MusicAcknowledgement, MusicAdmission
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from backend.music.admissions import LIFETIME_SECONDS
 
 COOKIE = "repeat_music_admission"

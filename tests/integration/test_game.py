@@ -8,10 +8,10 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 from backend.application.coordinator import Coordinator
-from backend.core.errors import DomainError
-from backend.game.service import GameService
-from backend.game.views import audio_manifest, game_view
-from backend.rooms.service import RETENTION_MS, RoomsService
+from shared.errors import DomainError
+from services.game.domain.service import GameService
+from services.game.domain.views import audio_manifest, game_view
+from services.rooms.domain.service import RETENTION_MS, RoomsService
 from backend.storage.database import Database
 from tests.support.catalog import write_large_catalog
 from tests.support.demo import demo_config, make_demo_pack, prepared_demo_import

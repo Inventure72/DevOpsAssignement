@@ -8,10 +8,10 @@ import threading
 import time
 from collections import OrderedDict, deque
 
-from backend.catalog.identity import normalized_words
+from shared.recording_identity import normalized_words
 from backend.catalog.store import public_song
 from backend.catalog.tokens import SongTokens
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 
 
 class SongSearch:

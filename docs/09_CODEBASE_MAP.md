@@ -1,6 +1,10 @@
 # 09 — Codebase Map
 
-Path lookup for the modular monolith. [Architecture](05_ARCHITECTURE.md) explains component boundaries; [Game Rules](03_GAME_RULES.md), [Data Model](06_DATA_MODEL.md) and [API](07_API_AND_RUNTIME.md) own the contracts.
+Path lookup for the playable monolith and the independently startable extraction
+APIs. [Architecture](05_ARCHITECTURE.md) describes the current browser runtime;
+[service split](20_SERVICE_SPLIT.md) distinguishes extraction from target behavior.
+[Game Rules](03_GAME_RULES.md), [Data Model](06_DATA_MODEL.md) and
+[API](07_API_AND_RUNTIME.md) own the existing game contracts.
 
 ## Backend ownership
 
@@ -8,23 +12,29 @@ Path lookup for the modular monolith. [Architecture](05_ARCHITECTURE.md) explain
 |---|---|
 | `backend/__main__.py` | Documented `python -m backend` startup |
 | `backend/app.py` | `create_app` composition root, dependency injection, HTTP wiring, health, lifespan and static mounts |
-| `backend/core/` | Immutable environment configuration, domain errors and source-relative resource paths |
+| `backend/core/` | Monolith environment configuration and source-relative resource paths |
+| `services/rooms/app.py`, `__main__.py` | Independent Rooms API, trusted import admission, protected snapshot export and process startup |
+| `services/game/app.py`, `__main__.py` | Independent private Game API over frozen values and process startup |
+| `services/*/development/001_init.sql` | Separate, domain-only SQLite development schemas; SQL Server port is pending |
+| `services/*/openapi.json`, `requirements.txt`, `tests/` | Committed API specifications, pinned runtime dependencies and own-database tests |
+| `shared/contracts.py`, `errors.py` | Validated transport values and a shared domain error value |
+| `shared/development.py` | Small extraction runtime: own SQLite connections/migration ledger, health and internal authentication |
 | `backend/api/` | Strict schemas, transport mapping, cookies, Origin checks, admission rate limits and invitation URL generation |
 | `backend/application/commands.py` | `RoomCommands` and `GameCommands` expose application use cases to HTTP |
 | `backend/application/coordinator.py` | Server acceptance time, authorization, transaction ordering and Rooms/Game lifecycle reconciliation |
 | `backend/application/room_locks.py` | Holder/waiter-scoped `RoomLocks`; idle registry entries are released safely |
 | `backend/application/audio_leases.py` | One active host-tab lease, renewal and explicit takeover |
 | `backend/application/music_admission.py` | Atomic bridge from verified import receipt into Rooms admission |
-| `backend/rooms/service.py` | Admission, identity, capacity, presence, membership and frozen snapshot export |
-| `backend/rooms/repository.py` | Rooms-owned SQL; callers own transaction boundaries |
-| `backend/rooms/demo.py` | Validated seed replacement and detached catalog pool snapshots/public Demo fixtures |
-| `backend/rooms/music.py` | Validate evidence/mode, persist checked imports and store observations with unchecked previews stripped |
-| `backend/game/service.py` | Game policy, answer finality, readiness, recovery, phase transitions and completion |
-| `backend/game/preparation.py` | Separate upcoming candidate, renewable check-ins, freshness and lease validation at promotion |
-| `backend/game/selection.py` | Pure bounded full-game candidate/reserve planning |
-| `backend/game/scoring.py`, `song_titles.py` | Exact server-timed scoring, credited-artist matching and release-label guess normalization |
-| `backend/game/repository.py` | Game-owned SQL, durable command receipts, score updates and rankings |
-| `backend/game/views.py` | Public projections, caller-owned answer visibility and private host audio manifest |
+| `services/rooms/domain/service.py` | Admission, identity, capacity, presence, membership and frozen snapshot export |
+| `services/rooms/domain/repository.py` | Rooms-owned SQL; callers own transaction boundaries |
+| `services/rooms/domain/demo.py` | Validated seed replacement and detached catalog pool snapshots/public Demo fixtures |
+| `services/rooms/domain/music.py` | Validate evidence/mode, persist checked imports and store observations with unchecked previews stripped |
+| `services/game/domain/service.py` | Game policy, answer finality, readiness, recovery, phase transitions and completion |
+| `services/game/domain/preparation.py` | Separate upcoming candidate, renewable check-ins, freshness and lease validation at promotion |
+| `services/game/domain/selection.py` | Pure bounded full-game candidate/reserve planning |
+| `services/game/domain/scoring.py`, `song_titles.py` | Exact server-timed scoring, credited-artist matching and release-label guess normalization |
+| `services/game/domain/repository.py` | Game-owned SQL, durable command receipts, score updates and rankings |
+| `services/game/domain/views.py` | Public projections, caller-owned answer visibility and private host audio manifest |
 | `backend/storage/database.py` | SQLite connection policy and application migrations 001–006 |
 
 ## Public metadata and music adapters
@@ -36,7 +46,7 @@ Path lookup for the modular monolith. [Architecture](05_ARCHITECTURE.md) explain
 | `backend/catalog/links.py` | Permanent positive identity links, bidirectional storage, scope/purpose and fingerprint invalidation |
 | `backend/catalog/selection.py` | Resolve signed bulk references before submission using narrow injected capabilities |
 | `backend/catalog/tokens.py` | Signed room-scoped selected-song facts; process secret and twenty-minute lifetime |
-| `backend/catalog/identity.py` | Shared pure identity/title normalization |
+| `shared/recording_identity.py` | Shared pure identity/title normalization |
 | `backend/catalog/importer.py`, `starter/` | Streaming optional bulk metadata import and the small MusicBrainz starter/provenance |
 | `backend/music/sources.py` | `MusicSource` / `ListeningData`, Spotify and simulated Demo listening adapters, exact-pack local preview validation |
 | `backend/music/authorization.py` | `AuthorizationFlow` and `SpotifyAuthorization`; provider-specific PKCE state, callback policy and token exchange |

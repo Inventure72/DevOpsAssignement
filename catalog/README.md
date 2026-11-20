@@ -1,4 +1,8 @@
-# Demo music pack
+# Legacy Demo music pack
+
+For the standalone Rooms service and Compose, see the
+[bundled original Demo pack](bundled_demo/README.md). This page documents only
+the earlier Assignment 1 launcher and its external pack.
 
 Demo's pinned pack contains 100 recordings: 80 personal-pool songs and 20 independent Nobody songs. Each player receives 36 personal recordings with simulated familiarity. The Demo source and local resolver use the same import/admission path as Spotify; [architecture](../docs/05_ARCHITECTURE.md#music-admission-and-the-public-catalog) defines the boundary.
 

@@ -2,7 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from backend.music.sources import MusicSource
 
 

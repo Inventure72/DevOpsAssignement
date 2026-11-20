@@ -1,7 +1,7 @@
 """Resolve signed bulk metadata before selection; answer submission stays offline."""
 
-from backend.catalog.identity import normalized_words, recording_title
-from backend.core.errors import DomainError
+from shared.recording_identity import normalized_words, recording_title
+from shared.errors import DomainError
 from backend.music.media import matches_recording
 
 

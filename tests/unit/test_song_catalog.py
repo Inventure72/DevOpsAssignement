@@ -7,7 +7,7 @@ import pytest
 
 from backend.catalog.search import SongSearch
 from backend.catalog.tokens import SongTokens
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 
 
 SONG = {

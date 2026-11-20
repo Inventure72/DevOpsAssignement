@@ -5,7 +5,7 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-from backend.catalog.identity import normalized_words
+from shared.recording_identity import normalized_words
 from backend.catalog.links import SCHEMA as LINKS_SCHEMA
 from backend.catalog.links import VerifiedLinks, fingerprint
 

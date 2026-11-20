@@ -11,7 +11,7 @@ from backend.catalog.importer import import_canonical
 from backend.catalog.search import SongSearch
 from backend.catalog.store import CatalogStore
 from tests.support.demo import demo_config
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from tests.unit.test_song_catalog import SONG
 from tests.integration.test_api import session as session, start
 from tests.integration.test_music_admission import (

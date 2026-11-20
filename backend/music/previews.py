@@ -7,9 +7,9 @@ import time
 from collections import OrderedDict
 from copy import deepcopy
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from backend.music.media import normalized_words, allowed_preview_url, preview_cache_ttl
-from backend.catalog.identity import recording_title
+from shared.recording_identity import recording_title
 from backend.catalog import links
 from backend.music.recordings import Recordings
 

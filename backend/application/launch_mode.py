@@ -1,6 +1,6 @@
 """Expose launch policy and installed music availability to admission and HTTP."""
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 
 
 class LaunchMode:

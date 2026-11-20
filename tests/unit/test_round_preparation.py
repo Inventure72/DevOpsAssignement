@@ -5,8 +5,8 @@ from copy import deepcopy
 
 import pytest
 
-from backend.core.errors import DomainError
-from backend.game.repository import encode
+from shared.errors import DomainError
+from services.game.domain.repository import encode
 from tests.support.game_policy import answering
 from tests.support.game_policy import (
     match as match,  # noqa: PLC0414 -- fixture registration

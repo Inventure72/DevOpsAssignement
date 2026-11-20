@@ -1,6 +1,6 @@
 """Issue room-scoped browser credentials and enforce their retention lifetime."""
 
-from backend.rooms.service import RETENTION_MS
+from services.rooms.domain.service import RETENTION_MS
 
 
 def cookie_name(room_id):

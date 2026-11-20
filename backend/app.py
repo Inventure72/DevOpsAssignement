@@ -22,7 +22,7 @@ from backend.application.music_admission import MusicAdmissionHandler
 from backend.catalog.search import SongSearch
 from backend.catalog.store import CatalogStore
 from backend.core.config import Config
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from backend.core.paths import FRONTEND_DIR
 from backend.music.admissions import ConnectedSource, MusicAdmissions
 from backend.music.apple import AppleCatalog
@@ -31,7 +31,7 @@ from backend.music.importer import MusicImporter
 from backend.music.previews import PreviewResolver
 from backend.music.sources import SpotifyListeningAdapter
 from backend.music.spotify import SpotifyClient
-from backend.rooms.demo import preview_sample
+from services.rooms.domain.demo import preview_sample
 
 logger = logging.getLogger(__name__)
 

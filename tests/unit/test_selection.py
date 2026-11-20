@@ -3,7 +3,7 @@ from random import Random
 
 import pytest
 
-from backend.game.selection import prepare_plan, skip_limit_exceeded
+from services.game.domain.selection import prepare_plan, skip_limit_exceeded
 
 
 def pools(personal=96, decoys=24):

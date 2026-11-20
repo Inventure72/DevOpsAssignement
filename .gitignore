@@ -65,6 +65,10 @@ canonical_musicbrainz_data.csv*
 .vscode/
 .idea/
 
+# Local agent skill installations
+/.agents/
+/.claude/
+
 
 # Working notes
 notes/
@@ -74,3 +78,6 @@ poc/
 
 
 tmp/
+
+# Local AI usage draft; the author reviews and commits it for final submission.
+/AI_USAGE.md

@@ -69,7 +69,7 @@ def demo_config(*args, **kwargs):
 def prepared_demo_import(conn, *, include_decoys=True):
     """Supply prepared source facts to tests focused on Rooms persistence."""
     from backend.music.sources import DemoListeningAdapter
-    from backend.rooms.demo import catalog_snapshot
+    from services.rooms.domain.demo import catalog_snapshot
 
     pools = catalog_snapshot(conn)
     listening = DemoListeningAdapter(pools["personal"]).read()
