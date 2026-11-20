@@ -43,7 +43,8 @@ def launcher_checkout(tmp_path_factory):
             ignore=shutil.ignore_patterns("__pycache__"),
         )
     shutil.copyfile(ROOT / "requirements.txt", root / "requirements.txt")
-    LauncherTestEnvironment().create(root / ".venv")
+    # A POSIX interpreter copy may lose access to its relative shared library.
+    LauncherTestEnvironment(symlinks=os.name != "nt").create(root / ".venv")
     return root
 
 

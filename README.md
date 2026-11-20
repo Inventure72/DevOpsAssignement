@@ -130,6 +130,7 @@ python -m pip install -r requirements.txt -r requirements-test.txt \
 bash tools/verify_service.sh rooms
 bash tools/verify_service.sh game
 python -m tools.check_service_contracts
+python -m tools.check_system_contract
 ```
 
 Each independent service enforces 90% core coverage and tests its own database/API.
@@ -143,9 +144,15 @@ other or the full-suite coverage results.
 GitHub Actions runs these checks on pushes and PRs, plus the monolith compatibility
 suite and frontend tests. A dedicated SQL Server job starts a local container
 with generated test credentials and runs real database acceptance checks. Run it
-locally with `python -m tools.test_rooms_sqlserver`. Image builds,
-`system.yaml` validation and Azure CD remain subsequent milestones. No CI
-job connects to Azure or uses live provider credentials.
+locally with `python -m tools.test_rooms_sqlserver`. The real-process test
+exercises the Rooms and Game HTTP seam against this container. Transport-fault
+tests separately inject timeouts and lost replies. CI also builds both Docker
+images and validates `system.yaml` against the supplied schema and the declared
+HTTP calls against OpenAPI. These verification jobs use disposable local data
+and require no Azure credentials. The separate deployment job runs only on
+pushes to `main` after every verification job passes for the same commit.
+See the [Azure deployment runbook](docs/22_AZURE_DEPLOYMENT.md) for
+initial setup, credentials and baseline evidence.
 
 With the project Python environment installed and **Node 24+**, run all tests:
 

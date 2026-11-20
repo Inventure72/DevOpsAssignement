@@ -214,3 +214,41 @@ out of per-replica startup, and give the Rooms reconciliation worker explicit
 ownership before raising the replica maximum.
 
 See the [Azure deployment runbook](docs/22_AZURE_DEPLOYMENT.md).
+
+## 9. Gate deployment on service tests, contracts and image builds
+
+Date: 2026-11-20
+
+Status: Decided
+
+Context: The split adds HTTP and persistence boundaries that monolith unit tests
+cannot exercise. Each service image and both machine-readable contracts must
+also match the source we deploy.
+
+Decision: Run the [CI workflow](.github/workflows/ci.yml) on every push and pull
+request. Each service installs its own dependencies, runs lint and tests, and
+enforces 90% core coverage. The regression job checks the legacy app, frontend,
+both committed OpenAPI documents, and the system manifest against the
+professor's schema. The manifest check also verifies that its HTTP calls resolve
+to operations in the target OpenAPI. Independent Linux image builds verify both
+Dockerfiles. A push to main starts deployment only after all checks pass for
+that commit.
+
+The cross-service test starts Rooms and Game as separate processes against
+scoped databases in a disposable SQL Server container. Over loopback HTTP it
+starts a match through Rooms, checks that Game received the frozen state, and
+exercises retries, reconciliation and the remaining API's health when its peer
+stops. The fault tests run both real ASGI applications in process and inject
+transport failures at precise points, including after Game commits but before
+Rooms receives the response. That covers ambiguous outcomes without relying on
+a real network interruption occurring at the intended instant.
+
+Alternatives considered: Testing only with stubs would miss real SQL Server and
+HTTP behavior. Reproducing every network fault with live processes would add
+timing dependence. Running CI against Azure SQL would consume the classroom
+allowance and expose persistent data to test cleanup.
+
+Consequences: CI runs with disposable SQL data and generated credentials. It
+leaves Azure routing, cold starts, live persistence, and physical audio output to
+deployment and acceptance checks. The proof of a live data-preserving migration
+comes from the deployed system rather than the CI database.
