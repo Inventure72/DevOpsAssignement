@@ -178,3 +178,39 @@ operator resume a failed transfer without guessing which transaction committed.
 
 See the [transfer runbook](docs/21_ASSIGNMENT_1_TRANSFER.md) for commands,
 verification and cutover conditions.
+
+## 8. Run the split services on Azure serverless infrastructure
+
+- **Date:** 2026-11-20
+- **Status:** Accepted for the Azure baseline.
+
+**Context.** The browser calls both services over HTTPS. Each service needs a
+durable database, and the shared course subscription has a per-student allowance.
+
+**Decision.** Use one Container Apps Consumption environment with Rooms and
+Game at zero to one replica each. Use separate General Purpose serverless
+databases on one SQL logical server, with 0.5–1 vCore, a 60-minute auto-pause delay
+and 2 GB per database. Each API uses its own contained SQL user. Host `ui/`
+through the Azure Storage static website endpoint, and allow that exact origin
+in both APIs. Keep the Log Analytics workspace for container and request logs.
+The pipeline publishes commit-tagged images to GHCR and deploys that same SHA.
+Configuration is checked into the repository, and credentials come from GitHub
+Actions secrets and are referenced through Container Apps secrets.
+
+**Alternatives.** Always-on compute and provisioned databases would reduce cold
+starts by trading idle costs for fixed expenditure. A shared database would
+couple deploys and let one service access data owned by the other.
+
+**Consequences.** The initial HTTP request can trigger replica startup and
+database resume. SQL startup retries transient failures with backoff before
+applying migrations. Deployment gives each own-database readiness check a
+210-second budget. Consumption charges follow usage, and a paused serverless
+database stops paying for compute. Storage, backups and log ingestion still
+use the shared allowance. The application keeps its three-second peer timeout and can
+retry an unresolved Start by its saved identity. The SQL startup logs and
+`/health` version identify the deployed revision. At substantially higher
+traffic, increase the database capacity based on measured load, take migrations
+out of per-replica startup, and give the Rooms reconciliation worker explicit
+ownership before raising the replica maximum.
+
+See the [Azure deployment runbook](docs/22_AZURE_DEPLOYMENT.md).
