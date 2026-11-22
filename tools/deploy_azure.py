@@ -21,7 +21,7 @@ OWNERS = ("rooms", "game")
 SQL_ADMIN = "repeat_sql_admin"
 
 
-def az(*arguments, stdin=None, output=False):
+def az(*arguments, stdin=None, output=False, storage_key=None):
     command = [
         "az",
         *arguments,
@@ -29,8 +29,11 @@ def az(*arguments, stdin=None, output=False):
         "--output",
         "json" if output else "none",
     ]
+    environment = (
+        None if storage_key is None else dict(os.environ, AZURE_STORAGE_KEY=storage_key)
+    )
     result = subprocess.run(
-        command, text=True, input=stdin, capture_output=True, check=False
+        command, text=True, input=stdin, env=environment, capture_output=True, check=False
     )
     if result.returncode:
         # Azure diagnostics can contain interpolated parameters. Keep only the error code.
@@ -108,7 +111,7 @@ def bootstrap_sql(server, database, owner, admin_password, password):
             time.sleep(5)
 
 
-def publish_ui(storage, ui, origins):
+def publish_ui(storage, storage_key, ui, origins):
     with TemporaryDirectory() as temporary:
         config = Path(temporary) / "config.js"
         config.write_text(
@@ -146,6 +149,7 @@ def publish_ui(storage, ui, origins):
                 "no-cache",
                 "--overwrite",
                 "true",
+                storage_key=storage_key,
             )
 
 
@@ -192,6 +196,22 @@ def main():
         foundation_parameters,
         sha,
     )
+    # Blob commands require the account key explicitly with the group-scoped login.
+    storage_key = az(
+        "storage",
+        "account",
+        "keys",
+        "list",
+        "--resource-group",
+        group,
+        "--account-name",
+        storage,
+        "--query",
+        "[0].value",
+        output=True,
+    )
+    if not storage_key:
+        raise RuntimeError("Azure did not return a key for the static website account")
     az(
         "storage",
         "blob",
@@ -205,6 +225,7 @@ def main():
         "true",
         "--index-document",
         "index.html",
+        storage_key=storage_key,
     )
     origin = az(
         "storage",
@@ -251,7 +272,7 @@ def main():
     for owner in OWNERS:
         wait_health(owner, apps[f"{owner}Origin"], sha)
     origins = {f"{owner}Origin": apps[f"{owner}Origin"] for owner in OWNERS}
-    publish_ui(storage, ROOT / manifest["ui"]["path"], origins)
+    publish_ui(storage, storage_key, ROOT / manifest["ui"]["path"], origins)
     with urlopen(origin + "/config.js", timeout=8) as response:
         actual = response.read().decode("utf-8")
         if actual != "window.REPEAT_CONFIG = " + json.dumps(origins) + ";\n":

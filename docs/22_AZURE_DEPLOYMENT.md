@@ -64,6 +64,10 @@ applies [the apps template](../deploy/azure-apps.bicep) and verifies that each
 storage account's `$web` container. The deployed UI uses its storage endpoint
 as the exact CORS origin.
 
+The deployment retrieves the named storage account's key at resource-group
+scope and passes it to the static website and upload commands through their
+process environment. GitHub Actions needs only the OIDC identity for this step.
+
 The SQL server requires TLS 1.2 and enables the Azure services firewall rule.
 For manual SQL administration from outside Azure, add a rule for your current
 public IP and remove it when finished. Each application's SQL user is contained
