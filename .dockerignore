@@ -25,6 +25,7 @@
 !catalog/bundled_demo/clips/*.mp3
 !tools/
 !tools/__init__.py
+!tools/build_pymssql.sh
 !tools/compose_bootstrap.py
 !tools/setup_rooms_db.py
 !db/

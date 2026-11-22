@@ -73,6 +73,11 @@ For manual SQL administration from outside Azure, add a rule for your current
 public IP and remove it when finished. Each application's SQL user is contained
 in its own database.
 
+Deployment and both service images build the pinned pymssql package against
+FreeTDS 1.5.22. The upstream release fixes OpenSSL's check of Azure SQL wildcard
+certificates. The build verifies both source archives. SQL connections still
+verify the CA chain and the configured server hostname.
+
 The pipeline uses incremental infrastructure deployment. It keeps the
 databases and existing data. The SQL users are created only when missing.
 Changing a password in GitHub alone leaves an existing SQL user unchanged,

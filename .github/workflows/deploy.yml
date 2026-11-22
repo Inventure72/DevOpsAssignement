@@ -38,7 +38,11 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install deployment tools
-        run: python -m pip install pymssql==2.4.6 PyYAML==6.0.3
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bzip2 curl gcc libc6-dev libssl-dev make
+          bash tools/build_pymssql.sh "$RUNNER_TEMP/sql-wheels"
+          python -m pip install "$RUNNER_TEMP"/sql-wheels/pymssql-*.whl PyYAML==6.0.3
       - name: Verify deployment secrets are configured
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
