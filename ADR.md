@@ -182,32 +182,42 @@ verification and cutover conditions.
 ## 8. Run the split services on Azure serverless infrastructure
 
 - **Date:** 2026-11-20
+- **Updated:** 2026-11-22 for the revised Azure course guidance.
 - **Status:** Accepted for the Azure baseline.
 
 **Context.** The browser calls both services over HTTPS. Each service needs a
-durable database, and the shared course subscription has a per-student allowance.
+durable database. The revised course guide uses the student's own Azure for
+Students subscription and a dedicated resource group under the university tenant.
 
 **Decision.** Use one Container Apps Consumption environment with Rooms and
 Game at zero to one replica each. Use separate General Purpose serverless
-databases on one SQL logical server, with 0.5–1 vCore, a 60-minute auto-pause delay
-and 2 GB per database. Each API uses its own contained SQL user. Host `ui/`
+databases on one SQL logical server. Enable the free offer with 0.5–1 vCore,
+locally redundant backups and `AutoPause` when the free limit is exhausted.
+The offer supplies the 60-minute idle delay and 32 GB size limit. Each API
+uses its own contained SQL user over TLS. Host `ui/`
 through the Azure Storage static website endpoint, and allow that exact origin
 in both APIs. Keep the Log Analytics workspace for container and request logs.
-The pipeline publishes commit-tagged images to GHCR and deploys that same SHA.
-Configuration is checked into the repository, and credentials come from GitHub
-Actions secrets and are referenced through Container Apps secrets.
+The pipeline publishes public, commit-tagged images to GHCR and deploys that
+same SHA. Use GitHub Actions OIDC to authenticate a user-assigned managed
+identity with Contributor scoped to the student's resource group. Its two
+federated subjects restrict trust to the named and immutable identities for
+this repository's `main` branch. SQL passwords and the service token come
+from GitHub Actions secrets and Container Apps uses secret references.
 
 **Alternatives.** Always-on compute and provisioned databases would reduce cold
 starts by trading idle costs for fixed expenditure. A shared database would
-couple deploys and let one service access data owned by the other.
+couple deploys and let one service access data owned by the other. An Azure
+service-principal client secret would require credential storage and rotation.
 
 **Consequences.** The initial HTTP request can trigger replica startup and
 database resume. SQL startup retries transient failures with backoff before
 applying migrations. Deployment gives each own-database readiness check a
-210-second budget. Consumption charges follow usage, and a paused serverless
-database stops paying for compute. Storage, backups and log ingestion still
-use the shared allowance. The application keeps its three-second peer timeout and can
-retry an unresolved Start by its saved identity. The SQL startup logs and
+210-second budget. Each database is unavailable for the remainder of a month
+if its free compute limit is exhausted. Other Azure services still use their
+own consumption and storage allowances. Newly published GHCR packages need a
+one-time visibility change so Azure can pull them anonymously. The application
+keeps its three-second peer timeout and can retry an unresolved Start by its
+saved identity. The SQL startup logs and
 `/health` version identify the deployed revision. At substantially higher
 traffic, increase the database capacity based on measured load, take migrations
 out of per-replica startup, and give the Rooms reconciliation worker explicit
@@ -245,7 +255,7 @@ a real network interruption occurring at the intended instant.
 
 Alternatives considered: Testing only with stubs would miss real SQL Server and
 HTTP behavior. Reproducing every network fault with live processes would add
-timing dependence. Running CI against Azure SQL would consume the classroom
+timing dependence. Running CI against Azure SQL would consume the student's
 allowance and expose persistent data to test cleanup.
 
 Consequences: CI runs with disposable SQL data and generated credentials. It

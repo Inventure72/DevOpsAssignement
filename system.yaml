@@ -1,13 +1,13 @@
 # yaml-language-server: $schema=./system.schema.json
 student: mgiorgetti.ieu2024
 prefix: mgiorgetti-ieu2024
-public_url: https://mgiorgettiieu2024ui.z6.web.core.windows.net/
+public_url: https://mgiorgettiieu2024ui1.z28.web.core.windows.net/
 ui:
   path: ui/
-  storage_account: mgiorgettiieu2024ui
+  storage_account: mgiorgettiieu2024ui1
   calls: [rooms, game]
 azure:
-  resource_group: rg-sdd-3a
+  resource_group: rg-mgiorgetti-ieu2024
   container_apps_environment: mgiorgetti-ieu2024-env
   sql_server: mgiorgetti-ieu2024-sql
   registry: ghcr.io/inventure72

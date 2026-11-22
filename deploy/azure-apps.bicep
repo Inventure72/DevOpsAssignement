@@ -16,34 +16,16 @@ param gameDatabaseUrl string
 @secure()
 param serviceToken string
 
-param registryUsername string = ''
-
-@secure()
-param registryPassword string = ''
-
 resource environment 'Microsoft.App/managedEnvironments@2024-03-01' existing = {
   name: '${prefix}-env'
 }
 
-var registrySecrets = empty(registryPassword) ? [] : [
-  {
-    name: 'ghcr-read-token'
-    value: registryPassword
-  }
-]
-var registries = empty(registryPassword) ? [] : [
-  {
-    server: 'ghcr.io'
-    username: registryUsername
-    passwordSecretRef: 'ghcr-read-token'
-  }
-]
-var serviceSecrets = concat(registrySecrets, [
+var serviceSecrets = [
   {
     name: 'service-token'
     value: serviceToken
   }
-])
+]
 var environmentVariables = [
   {
     name: 'DATABASE_URL'
@@ -102,7 +84,7 @@ resource game 'Microsoft.App/containerApps@2024-03-01' = {
     workloadProfileName: 'Consumption'
     configuration: {
       activeRevisionsMode: 'Single'
-      registries: registries
+      registries: []
       ingress: {
         external: true
         allowInsecure: false
@@ -144,7 +126,7 @@ resource rooms 'Microsoft.App/containerApps@2024-03-01' = {
     workloadProfileName: 'Consumption'
     configuration: {
       activeRevisionsMode: 'Single'
-      registries: registries
+      registries: []
       ingress: {
         external: true
         allowInsecure: false

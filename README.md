@@ -151,6 +151,7 @@ images and validates `system.yaml` against the supplied schema and the declared
 HTTP calls against OpenAPI. These verification jobs use disposable local data
 and require no Azure credentials. The separate deployment job runs only on
 pushes to `main` after every verification job passes for the same commit.
+The deployed Demo is served by the [Azure static site](https://mgiorgettiieu2024ui1.z28.web.core.windows.net/).
 See the [Azure deployment runbook](docs/22_AZURE_DEPLOYMENT.md) for
 initial setup, credentials and baseline evidence.
 

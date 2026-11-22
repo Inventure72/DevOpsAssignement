@@ -2,6 +2,7 @@ targetScope = 'resourceGroup'
 
 param prefix string
 param location string = resourceGroup().location
+param sqlLocation string = location
 param storageAccountName string = '${replace(prefix, '-', '')}ui'
 param sqlAdminLogin string = 'repeat_sql_admin'
 
@@ -55,7 +56,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 
 resource sql 'Microsoft.Sql/servers@2023-08-01' = {
   name: '${prefix}-sql'
-  location: location
+  location: sqlLocation
   properties: {
     administratorLogin: sqlAdminLogin
     administratorLoginPassword: sqlAdminPassword
@@ -77,7 +78,7 @@ resource azureFirewall 'Microsoft.Sql/servers/firewallRules@2023-08-01' = {
 resource databases 'Microsoft.Sql/servers/databases@2023-08-01' = [for service in ['rooms', 'game']: {
   parent: sql
   name: '${prefix}-${service}-db'
-  location: location
+  location: sqlLocation
   sku: {
     name: 'GP_S_Gen5'
     tier: 'GeneralPurpose'
@@ -86,8 +87,8 @@ resource databases 'Microsoft.Sql/servers/databases@2023-08-01' = [for service i
   }
   properties: {
     minCapacity: json('0.5')
-    autoPauseDelay: 60
-    maxSizeBytes: 2147483648
+    useFreeLimit: true
+    freeLimitExhaustionBehavior: 'AutoPause'
     requestedBackupStorageRedundancy: 'Local'
   }
 }]

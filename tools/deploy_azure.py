@@ -1,4 +1,4 @@
-"""Deploy the trusted main build with the GitHub Actions credentials."""
+"""Deploy the tested main commit using the GitHub Actions OIDC login."""
 
 import json
 import mimetypes
@@ -174,15 +174,22 @@ def main():
     admin_password = os.environ["AZURE_SQL_ADMIN_PASSWORD"]
     storage = manifest["ui"]["storage_account"]
     prefix = manifest["prefix"]
-    print("Provisioning the assigned Azure infrastructure", flush=True)
+    for name, value in {"PREFIX": prefix, "RESOURCE_GROUP": group, "UI_STORAGE": storage}.items():
+        if os.environ.get(name) != value:
+            raise ValueError(f"GitHub variable {name} must match system.yaml")
+    sql_location = os.environ.get("AZURE_SQL_LOCATION", "").strip()
+    foundation_parameters = {
+        "prefix": prefix,
+        "storageAccountName": storage,
+        "sqlAdminPassword": admin_password,
+    }
+    if sql_location:
+        foundation_parameters["sqlLocation"] = sql_location
+    print("Provisioning Azure infrastructure in the student resource group", flush=True)
     foundation = provision(
         group,
         "azure-foundation",
-        {
-            "prefix": prefix,
-            "storageAccountName": storage,
-            "sqlAdminPassword": admin_password,
-        },
+        foundation_parameters,
         sha,
     )
     az(
@@ -195,6 +202,7 @@ def main():
         "--auth-mode",
         "key",
         "--static-website",
+        "true",
         "--index-document",
         "index.html",
     )
@@ -224,7 +232,6 @@ def main():
         for owner in OWNERS
     }
     registry = settings["registry"]
-    registry_token = os.environ.get("GHCR_PULL_TOKEN", "")
     print("Deploying the Rooms and Game containers", flush=True)
     apps = provision(
         group,
@@ -238,8 +245,6 @@ def main():
             "roomsDatabaseUrl": database_urls["rooms"],
             "gameDatabaseUrl": database_urls["game"],
             "serviceToken": os.environ["REPEAT_SERVICE_TOKEN"],
-            "registryUsername": registry.rsplit("/", 1)[-1],
-            "registryPassword": registry_token,
         },
         sha,
     )
