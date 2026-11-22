@@ -72,8 +72,11 @@ def provision(group, template, parameters, sha):
 
 
 def sql_url(server, database, user, password):
+    # FreeTDS connects through a local alias. Tell the Azure gateway which
+    # logical server owns the login even though that alias is in use.
+    login = f"{user}@{server.partition('.')[0]}"
     return (
-        f"mssql+pymssql://{quote(user, safe='')}:{quote(password, safe='')}"
+        f"mssql+pymssql://{quote(login, safe='')}:{quote(password, safe='')}"
         f"@{server}:1433/{quote(database, safe='')}"
     )
 
@@ -83,8 +86,10 @@ def bootstrap_sql(server, database, owner, admin_password, password):
     administrator = sql_url(server, database, SQL_ADMIN, admin_password)
     deadline = time.monotonic() + 150
     while True:
+        stage = "connection"
         try:
             with connect_sql(connection_options(administrator)) as connection:
+                stage = "user provisioning"
                 cursor = connection.cursor()
                 cursor.execute(
                     f"IF USER_ID('{user}') IS NULL "
@@ -100,13 +105,12 @@ def bootstrap_sql(server, database, owner, admin_password, password):
             return sql_url(server, database, user, password)
         except DRIVER_ERRORS as error:
             if time.monotonic() >= deadline:
-                code = (
-                    error.args[0]
-                    if error.args and isinstance(error.args[0], int)
-                    else "unknown"
-                )
+                detail = error.args[0] if error.args else None
+                if isinstance(detail, tuple) and detail:
+                    detail = detail[0]
+                code = detail if isinstance(detail, int) else "unknown"
                 raise RuntimeError(
-                    f"Could not initialize the {owner} SQL user (SQL {code})"
+                    f"Could not initialize the {owner} SQL user during {stage} (SQL {code})"
                 ) from None
             time.sleep(5)
 
