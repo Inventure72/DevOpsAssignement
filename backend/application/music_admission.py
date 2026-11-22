@@ -1,6 +1,6 @@
 """Atomically deliver a verified import into Rooms, with a live receipt guard."""
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 
 
 class MusicAdmissionHandler:

@@ -5,9 +5,9 @@ from unittest.mock import create_autospec
 
 import pytest
 
-from backend.core.errors import DomainError
-from backend.rooms import repository
-from backend.rooms.service import (
+from shared.errors import DomainError
+from services.rooms.domain import repository
+from services.rooms.domain.service import (
     CONNECTED_MS,
     HOST_GRACE_MS,
     RETENTION_MS,
@@ -148,8 +148,8 @@ def test_create_allocates_identity_after_validation_and_handles_exhausted_codes(
         lambda: service.create(None, "Host", "coral", "normal", 1000),
     )
     repo.room_by_code.return_value = None
-    store = create_autospec(__import__("backend.rooms.music", fromlist=["store"]).store)
-    monkeypatch.setattr("backend.rooms.music.store", store)
+    store = create_autospec(__import__("services.rooms.domain.music", fromlist=["store"]).store)
+    monkeypatch.setattr("services.rooms.domain.music.store", store)
     result = service.create(
         None, " Host ", "coral", "demo", 1000, imported=demo_import()
     )
@@ -178,8 +178,8 @@ def test_join_requires_music_signin_in_normal_and_assigns_demo_only_in_demo(
     )
     repo.add_player.assert_not_called()
     room["mode"] = "demo"
-    store = create_autospec(__import__("backend.rooms.music", fromlist=["store"]).store)
-    monkeypatch.setattr("backend.rooms.music.store", store)
+    store = create_autospec(__import__("services.rooms.domain.music", fromlist=["store"]).store)
+    monkeypatch.setattr("services.rooms.domain.music.store", store)
     service.join(None, "room", "Guest", "sky", 1000, imported=demo_import())
     assert repo.add_player.call_args.kwargs["is_host"] is False
     assert store.call_count == 3

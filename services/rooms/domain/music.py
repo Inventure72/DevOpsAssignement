@@ -1,0 +1,166 @@
+"""Persist verified imports without exposing personal listening evidence in views."""
+
+import hashlib
+import json
+import re
+import secrets
+
+from shared.recording_identity import normalized_words, recording_title
+from shared.errors import DomainError
+
+
+def identity(song):
+    return "isrc:" + song["isrc"] if song.get("isrc") else song["song_key"]
+
+
+def store_observations(conn, room_id, player_id, songs):
+    """Store listening ownership with unchecked preview URLs removed."""
+    store(conn, room_id, player_id, [song | {"preview_url": None} for song in songs])
+
+
+def store(conn, room_id, player_id, songs, *, decoys=False):
+    for song in songs:
+        key = identity(song)
+        existing = conn.execute(
+            "SELECT id,title,artists_json,identity_key FROM songs WHERE room_id=? AND identity_key=?",
+            (room_id, key),
+        ).fetchall()
+        existing = next((row for row in existing if row["identity_key"] == key), None)
+        if existing and not _compatible(existing, song):
+            # Provider ISRC metadata can be mislabeled. Keep conflicting versions
+            # separate rather than attaching one recording's owners to another.
+            variant = (
+                recording_title(song["title"])
+                + ":"
+                + normalized_words(song["artists"][0]["name"])
+            )
+            key += ":variant:" + hashlib.sha256(variant.encode()).hexdigest()[:16]
+            existing = conn.execute(
+                "SELECT id,title,artists_json,identity_key FROM songs WHERE room_id=? AND identity_key=?",
+                (room_id, key),
+            ).fetchall()
+            existing = next(
+                (row for row in existing if row["identity_key"] == key), None
+            )
+        if existing:
+            song_id = existing["id"]
+            artists = {a["artist_key"]: a for a in json.loads(existing["artists_json"])}
+            for credit in song["artists"]:
+                prior = artists.get(credit["artist_key"], {})
+                aliases = list(
+                    dict.fromkeys(
+                        [*prior.get("aliases", []), *credit.get("aliases", [])]
+                    )
+                )
+                artists[credit["artist_key"]] = {
+                    **credit,
+                    **({"aliases": aliases} if aliases else {}),
+                }
+            conn.execute(
+                """UPDATE songs SET artists_json=?,preview_url=COALESCE(preview_url,?),
+                            artwork_url=COALESCE(artwork_url,?) WHERE id=?""",
+                (
+                    json.dumps(list(artists.values())),
+                    song.get("preview_url"),
+                    song.get("artwork_url"),
+                    song_id,
+                ),
+            )
+            if not decoys:
+                conn.execute(
+                    "UPDATE songs SET pool_kind='personal' WHERE id=?", (song_id,)
+                )
+        else:
+            song_id = secrets.token_hex(16)
+            conn.execute(
+                """INSERT INTO songs (id,room_id,identity_key,isrc,title,artist,artists_json,
+                            preview_url,artwork_url,pool_kind) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    song_id,
+                    room_id,
+                    key,
+                    song.get("isrc"),
+                    song["title"],
+                    song["artist"],
+                    json.dumps(song["artists"]),
+                    song.get("preview_url"),
+                    song.get("artwork_url"),
+                    "decoy" if decoys else "personal",
+                ),
+            )
+        if not decoys:
+            conn.execute(
+                """INSERT INTO player_songs (room_id,player_id,song_id,familiarity)
+                   SELECT ?,?,?,? WHERE NOT EXISTS
+                   (SELECT 1 FROM player_songs WHERE player_id=? AND song_id=?)""",
+                (room_id, player_id, song_id, song["familiarity"], player_id, song_id),
+            )
+
+
+def _compatible(existing, song):
+    source_names = {normalized_words(credit["name"]) for credit in song["artists"]}
+    stored_names = {
+        normalized_words(credit["name"])
+        for credit in json.loads(existing["artists_json"])
+    }
+    return recording_title(existing["title"]) == recording_title(
+        song["title"]
+    ) and bool(source_names & stored_names)
+
+
+def validate_import(imported, mode):
+    provider, evidence = imported.get("provider"), imported.get("evidence")
+    canonical_provider = isinstance(provider, str) and re.fullmatch(
+        r"[a-z][a-z0-9_-]*", provider
+    )
+    matches = (
+        provider == "demo" and evidence == "simulated"
+        if mode == "demo"
+        else canonical_provider and provider != "demo" and evidence == "personal"
+    )
+    if not matches:
+        raise DomainError(
+            "music_source_mismatch",
+            "The music source does not match this room mode.",
+            409,
+        )
+    personal = imported["evidence"] == "personal"
+    account_id = imported.get("account_id")
+    if (personal and (not isinstance(account_id, str) or not account_id)) or (
+        not personal and account_id is not None
+    ):
+        raise DomainError(
+            "invalid_music_import", "The verified source identity is incomplete.", 503
+        )
+    songs = imported.get("songs", [])
+    if any(
+        isinstance(value, str) and "\x00" in value
+        for song in [
+            *songs,
+            *imported.get("observed_songs", []),
+            *imported.get("decoys", []),
+        ]
+        for value in song.values()
+    ):
+        raise DomainError(
+            "invalid_music_import", "Song metadata contains a null character."
+        )
+    minimum = 10 if personal else 1
+    if len({identity(s) for s in songs}) < minimum:
+        raise DomainError(
+            "music_import_insufficient",
+            "The import has too few playable songs to join.",
+            409,
+        )
+    for song in [*songs, *imported.get("decoys", [])]:
+        if not song.get("preview_url") or not song.get("artists"):
+            raise DomainError(
+                "invalid_music_import", "The verified import is incomplete.", 503
+            )
+    for song in [*songs, *imported.get("observed_songs", [])]:
+        if song.get("familiarity") not in {"easy", "medium", "hard"} or not song.get(
+            "artists"
+        ):
+            raise DomainError(
+                "invalid_music_import", "The listening evidence is incomplete.", 503
+            )

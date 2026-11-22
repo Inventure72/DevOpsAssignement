@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from backend.music.authorization import AuthorizationFlow
 
 LIFETIME_SECONDS = 15 * 60

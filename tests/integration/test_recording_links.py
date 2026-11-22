@@ -6,7 +6,7 @@ import pytest
 
 from backend.catalog import links
 from backend.catalog.store import CatalogStore
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from backend.music.http import ProviderHttpError
 from backend.music.previews import PreviewResolver
 from tests.unit.test_apple_provider import catalog_song, client, spotify_song

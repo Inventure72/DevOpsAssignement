@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  sqlserver:
+    name: Rooms and Game on SQL Server 2022
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install service and verification dependencies
+        run: python -m pip install -r services/rooms/requirements.txt -r services/game/requirements.txt -r requirements-test.txt
+      - name: Test real SQL Server with generated local credentials
+        run: |
+          python -m ruff check --select E4,E7,E9,F tools/setup_rooms_db.py tools/test_rooms_sqlserver.py tools/transfer_assignment1.py
+          python -m tools.test_rooms_sqlserver
+
+  service:
+    name: ${{ matrix.service }} core and API
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [rooms, game]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install service and verification dependencies
+        run: python -m pip install -r services/${{ matrix.service }}/requirements.txt -r requirements-test.txt
+      - name: Lint service and shared code
+        run: python -m ruff check --select E4,E7,E9,F services/${{ matrix.service }} shared
+      - name: Verify core coverage and owned API
+        env:
+          PYTHON: python
+        run: bash tools/verify_service.sh '${{ matrix.service }}'
+
+  regression:
+    name: Monolith compatibility, frontend and contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install application and verification dependencies
+        run: python -m pip install -r requirements.txt -r services/rooms/requirements.txt -r services/game/requirements.txt -r requirements-test.txt
+      - name: Lint application source
+        run: python -m ruff check --select E4,E7,E9,F backend services shared tools/check_system_contract.py tools/deploy_azure.py
+      - name: Validate OpenAPI and generated-contract drift
+        run: python -m tools.check_service_contracts
+      - name: Validate system.yaml against the assignment schema
+        run: python -m tools.check_system_contract
+      - name: Run complete regression suite
+        env:
+          PYTHON: python
+        run: bash tools/verify.sh
+
+  image:
+    name: Build ${{ matrix.service }} image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [rooms, game]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build standalone service image
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: docker build --platform linux/amd64 --provenance=false --file "services/$SERVICE/Dockerfile" --tag "repeat-ci:$SERVICE" .
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [sqlserver, service, regression, image]
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    uses: ./.github/workflows/deploy.yml
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_SQL_ADMIN_PASSWORD: ${{ secrets.AZURE_SQL_ADMIN_PASSWORD }}
+      ROOMS_SQL_PASSWORD: ${{ secrets.ROOMS_SQL_PASSWORD }}
+      GAME_SQL_PASSWORD: ${{ secrets.GAME_SQL_PASSWORD }}
+      REPEAT_SERVICE_TOKEN: ${{ secrets.REPEAT_SERVICE_TOKEN }}

@@ -169,7 +169,7 @@ The two-second preparation target measures current-round payload preparation thr
 
 Private audio manifests require `X-Audio-Lease`. Host-decoded waveform samples contain 8–64 normalized levels in `[0,1]`; absent data stays null. Setup preloads the complete manifest and schedules the current decoded buffer at the common start. Lobby settings are process-local until frozen at Start; restart restores the last frozen settings or defaults.
 
-Strict payloads are in [schemas.py](../backend/api/schemas.py), HTTP handlers in [routes.py](../backend/api/routes.py), and public projections in [views.py](../backend/game/views.py).
+Strict payloads are in [schemas.py](../backend/api/schemas.py), HTTP handlers in [routes.py](../backend/api/routes.py), and public projections in [views.py](../services/game/domain/views.py).
 
 ## 12. Real music connection runtime
 

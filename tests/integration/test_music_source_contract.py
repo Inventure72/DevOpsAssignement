@@ -9,7 +9,7 @@ from backend.application.commands import RoomCommands
 from backend.application.coordinator import Coordinator
 from backend.application.music_admission import MusicAdmissionHandler
 from backend.catalog.search import SongSearch
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from backend.music.importer import MusicImporter
 from backend.music.previews import PreviewResolver
 from backend.music.sources import DemoListeningAdapter, SpotifyListeningAdapter
@@ -202,7 +202,7 @@ def test_rejected_local_audio_remains_listener_evidence_but_never_playable(
     )
     c.initialize()
     # Use a stable assignment containing the missing clip after startup checks.
-    from backend.rooms.demo import catalog_snapshot
+    from services.rooms.domain.demo import catalog_snapshot
 
     with c.db.read() as conn:
         missing = catalog_snapshot(conn)["personal"][0]

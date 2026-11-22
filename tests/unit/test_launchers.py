@@ -4,9 +4,12 @@ import argparse
 import json
 import os
 from pathlib import Path
+import shutil
+import site
 import socket
 import subprocess
 import sys
+import venv
 
 import pytest
 
@@ -17,6 +20,32 @@ from tools import launch_runtime as runtime
 from tools import launch_support as network
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+class LauncherTestEnvironment(venv.EnvBuilder):
+    def post_setup(self, context):
+        # Reuse the pinned test dependencies without running pip in preflight tests.
+        package_paths = site.getsitepackages()
+        if site.ENABLE_USER_SITE:
+            package_paths.append(site.getusersitepackages())
+        (Path(context.lib_path) / "test-runtime.pth").write_text(
+            "\n".join(package_paths) + "\n", encoding="utf-8"
+        )
+
+
+@pytest.fixture(scope="module")
+def launcher_checkout(tmp_path_factory):
+    root = tmp_path_factory.mktemp("launcher_checkout")
+    for directory in ("backend", "services", "shared", "tools"):
+        shutil.copytree(
+            ROOT / directory,
+            root / directory,
+            ignore=shutil.ignore_patterns("__pycache__"),
+        )
+    shutil.copyfile(ROOT / "requirements.txt", root / "requirements.txt")
+    # A POSIX interpreter copy may lose access to its relative shared library.
+    LauncherTestEnvironment(symlinks=os.name != "nt").create(root / ".venv")
+    return root
 
 
 def options(**values):
@@ -449,7 +478,7 @@ def test_startup_replaces_process_with_selected_environment(
 
 
 def test_subprocess_demo_preflight_from_outside_repo_is_read_only_and_ignores_keys(
-    tmp_path, free_port
+    launcher_checkout, tmp_path, free_port
 ):
     environment = dict(os.environ)
     environment.update({key: "broken" for key in launch.APPLICATION_KEYS})
@@ -459,7 +488,7 @@ def test_subprocess_demo_preflight_from_outside_repo_is_read_only_and_ignores_ke
     result = subprocess.run(
         [
             sys.executable,
-            str(ROOT / "tools/launch_game.py"),
+            str(launcher_checkout / "tools/launch_game.py"),
             "demo",
             "--check",
             "--demo-pack",
@@ -482,7 +511,7 @@ def test_subprocess_demo_preflight_from_outside_repo_is_read_only_and_ignores_ke
 
 
 def test_subprocess_real_preflight_uses_supplied_settings_and_never_leaks_secrets(
-    tmp_path, real_settings, free_port
+    launcher_checkout, tmp_path, real_settings, free_port
 ):
     environment = {
         key: value
@@ -496,7 +525,7 @@ def test_subprocess_real_preflight_uses_supplied_settings_and_never_leaks_secret
     result = subprocess.run(
         [
             sys.executable,
-            str(ROOT / "tools/launch_game.py"),
+            str(launcher_checkout / "tools/launch_game.py"),
             "real",
             "--check",
             "--demo-pack",
@@ -522,14 +551,14 @@ def test_subprocess_real_preflight_uses_supplied_settings_and_never_leaks_secret
 
 
 def test_subprocess_real_missing_credentials_does_not_install_or_touch_data(
-    tmp_path, real_settings, free_port
+    launcher_checkout, tmp_path, real_settings, free_port
 ):
     environment = {**os.environ, **real_settings, "APPLE_TEAM_ID": ""}
     data = tmp_path / "not-created"
     result = subprocess.run(
         [
             sys.executable,
-            str(ROOT / "tools/launch_game.py"),
+            str(launcher_checkout / "tools/launch_game.py"),
             "real",
             "--check",
             "--port",
@@ -550,14 +579,16 @@ def test_subprocess_real_missing_credentials_does_not_install_or_touch_data(
     os.name == "nt",
     reason="Bash wrappers are for macOS/Linux; Windows uses the Python entry point",
 )
-def test_bash_demo_wrapper_from_outside_repo_uses_portable_entry(tmp_path, free_port):
+def test_bash_demo_wrapper_from_outside_repo_uses_portable_entry(
+    launcher_checkout, tmp_path, free_port
+):
     pack = tmp_path / "media"
     make_pack(pack)
     data = tmp_path / "not-created"
     result = subprocess.run(
         [
             "bash",
-            str(ROOT / "tools/run_demo.sh"),
+            str(launcher_checkout / "tools/run_demo.sh"),
             "--check",
             "--demo-pack",
             str(pack),

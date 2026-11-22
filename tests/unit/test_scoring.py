@@ -2,8 +2,8 @@ from fractions import Fraction
 
 import pytest
 
-from backend.catalog.identity import recording_title
-from backend.game.scoring import classify_song_guess, half_up, score_answer
+from shared.recording_identity import recording_title
+from services.game.domain.scoring import classify_song_guess, half_up, score_answer
 
 
 def facts(key="correct", listeners=("Anna", "Ben"), artists=("demo:one",)):

@@ -3,7 +3,7 @@
 import pytest
 
 from backend.application.music_admission import MusicAdmissionHandler
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from tests.integration.test_music_admission import (
     MUSIC,
     begin,

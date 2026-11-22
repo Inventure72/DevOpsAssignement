@@ -1,0 +1,109 @@
+x-rooms-image: &rooms-image
+  image: whos-on-repeat-rooms:local
+  build:
+    context: .
+    dockerfile: services/rooms/Dockerfile
+
+x-api-health: &api-health
+  test:
+    - CMD
+    - python
+    - -c
+    - 'import os, urllib.request; urllib.request.urlopen("http://127.0.0.1:" + os.environ["PORT"] + "/health", timeout=3).close()'
+  interval: 5s
+  timeout: 4s
+  start_period: 20s
+  retries: 6
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    entrypoint: ["/bin/sh", "/run/repeat/compose-start.sh"]
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_MEMORY_LIMIT_MB: "2048"
+    volumes:
+      - sql-data:/var/opt/mssql
+      - sql-admin:/run/repeat/admin:ro
+      - ./db/compose-start.sh:/run/repeat/compose-start.sh:ro
+      - ./db/compose-mssql.conf:/run/repeat/mssql.conf:ro
+    networks: [database]
+
+  db-init:
+    <<: *rooms-image
+    command: ["python", "-m", "tools.compose_bootstrap"]
+    depends_on:
+      sqlserver:
+        condition: service_started
+    volumes:
+      - sql-admin:/run/repeat/admin
+      - rooms-config:/run/repeat/rooms
+      - game-config:/run/repeat/game
+    networks: [database]
+
+  rooms:
+    <<: *rooms-image
+    command: ["python", "-m", "shared.compose_runtime", "rooms"]
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: "8001"
+      GAME_BASE_URL: "http://game:8002"
+      UI_ORIGIN: "http://127.0.0.1:${UI_HOST_PORT:-8080}"
+      GIT_SHA: "${GIT_SHA:-development}"
+    ports:
+      - "127.0.0.1:${ROOMS_HOST_PORT:-8001}:8001"
+    volumes:
+      - rooms-config:/run/repeat/rooms:ro
+    healthcheck: *api-health
+    networks: [database, application]
+
+  game:
+    image: whos-on-repeat-game:local
+    build:
+      context: .
+      dockerfile: services/game/Dockerfile
+    command: ["python", "-m", "shared.compose_runtime", "game"]
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: "8002"
+      UI_ORIGIN: "http://127.0.0.1:${UI_HOST_PORT:-8080}"
+      GIT_SHA: "${GIT_SHA:-development}"
+    ports:
+      - "127.0.0.1:${GAME_HOST_PORT:-8002}:8002"
+    volumes:
+      - game-config:/run/repeat/game:ro
+    healthcheck: *api-health
+    networks: [database, application]
+
+  ui:
+    image: nginx:1.28-alpine
+    environment:
+      ROOMS_HOST_PORT: "${ROOMS_HOST_PORT:-8001}"
+      GAME_HOST_PORT: "${GAME_HOST_PORT:-8002}"
+    ports:
+      - "127.0.0.1:${UI_HOST_PORT:-8080}:8080"
+    volumes:
+      - ./ui:/usr/share/nginx/html:ro
+      - ./deploy/local-ui.conf.template:/etc/nginx/templates/default.conf.template:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+networks:
+  application:
+  database:
+    internal: true
+
+volumes:
+  sql-data:
+  sql-admin:
+  rooms-config:
+  game-config:

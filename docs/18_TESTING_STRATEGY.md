@@ -29,6 +29,22 @@ Current regressions cover:
 
 ## Verification
 
+The Assignment 2 extraction adds service-owned database/API tests under
+`services/rooms/tests` and `services/game/tests`. Each service has an independent
+90% core-coverage command, `bash tools/verify_service.sh rooms|game`. The full
+verification script includes these tests plus the existing suites.
+
+`test_service_processes.py` starts the actual service entry points on separate
+ports with temporary databases, transfers a host-authorized snapshot through the
+test client, and checks Game's health/frozen reads after Rooms stops. This proves
+process/storage independence; it does not substitute for the pending server-side
+Start/reservation HTTP workflow or the required SQL Server/Azure checks.
+
+`python -m tools.check_service_contracts` validates both OpenAPI documents and
+rejects schema drift. Initial push/PR CI runs service checks, full compatibility
+and frontend regressions. Hosted execution remains unverified until a push runs
+the workflow; local checks do not constitute a GitHub Actions result.
+
 ```bash
 bash tools/verify.sh
 ```

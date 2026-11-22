@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from tests.support.game_policy import answering, error, prepared
 from tests.support.game_policy import (
     match as match,  # noqa: PLC0414 -- fixture registration

@@ -2,7 +2,7 @@
 
 import math
 
-from backend.catalog.identity import normalized_words, recording_title
+from shared.recording_identity import normalized_words, recording_title
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, parse_qs
 from urllib.request import HTTPRedirectHandler, Request, build_opener

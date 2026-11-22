@@ -3,7 +3,7 @@
 import pytest
 
 from backend.catalog.store import CatalogStore
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from backend.music.previews import PreviewResolver
 from tests.unit.test_music_previews import FakeCatalog, PREVIEW_URL, song
 

@@ -5,9 +5,9 @@ import sqlite3
 
 import pytest
 
-from backend.core.errors import DomainError
-from backend.rooms.demo import seed_demo
-from backend.rooms.service import RETENTION_MS, RoomsService
+from shared.errors import DomainError
+from services.rooms.domain.demo import seed_demo
+from services.rooms.domain.service import RETENTION_MS, RoomsService
 from backend.storage.database import Database
 from tests.support.catalog import write_large_catalog
 from tests.support.demo import prepared_demo_import

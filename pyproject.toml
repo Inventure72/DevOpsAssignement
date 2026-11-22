@@ -1,9 +1,9 @@
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "services/rooms/tests", "services/game/tests"]
 pythonpath = ["."]
 
 [tool.coverage.run]
-source = ["backend.rooms", "backend.game"]
+source = ["services.rooms.domain", "services.game.domain"]
 
 [tool.ruff]
 line-length = 88

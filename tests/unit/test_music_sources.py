@@ -6,7 +6,7 @@ from copy import deepcopy
 
 import pytest
 
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 from backend.music.sources import (
     DemoListeningAdapter,
     LocalPreviewResolver,

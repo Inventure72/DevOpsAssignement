@@ -2,7 +2,7 @@
 
 from backend.application.music_admission import MusicAdmissionHandler
 from backend.catalog.selection import CatalogSelections
-from backend.core.errors import DomainError
+from shared.errors import DomainError
 
 
 class RoomCommands:
