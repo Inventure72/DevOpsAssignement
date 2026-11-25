@@ -148,14 +148,14 @@ def test_game_concurrent_starts_frozen_data_receipts_and_health(game_db):
                 )
     game_db.initialize()
     with game_db.read() as conn:
-        assert (
-            conn.execute("SELECT COUNT(*) AS n FROM schema_migrations").fetchone()["n"]
-            == 1
-        )
-        assert (
-            SqlServerGameRepository().game(conn, first_id)["started_at_ms"]
-            == 1_800_000_000_000
-        )
+        applied = conn.execute("SELECT name FROM schema_migrations ORDER BY name")
+        assert [receipt["name"] for receipt in applied] == [
+            "001_init.sql",
+            "002_game_duration.sql",
+        ]
+        game = SqlServerGameRepository().game(conn, first_id)
+        assert game["started_at_ms"] == 1_800_000_000_000
+        assert game["duration_ms"] is None
 
 
 def legacy_backup(tmp_path):
@@ -343,3 +343,6 @@ def test_transfer_retries_after_second_target_rolls_back(tmp_path, rooms_db, gam
         assert rooms_repo.room(conn, rid)["last_completed_at_ms"] is None
     with game_db.read() as conn:
         assert repo.history(conn, rid)[1] == historic
+        for game_id in (finished, active):
+            saved = repo.game(conn, game_id)
+            assert saved["duration_ms"] == saved["ended_at_ms"] - saved["started_at_ms"]
