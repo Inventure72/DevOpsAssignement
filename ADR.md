@@ -262,3 +262,33 @@ Consequences: CI runs with disposable SQL data and generated credentials. It
 leaves Azure routing, cold starts, live persistence, and physical audio output to
 deployment and acceptance checks. The proof of a live data-preserving migration
 comes from the deployed system rather than the CI database.
+
+## 10. Defer a message broker for Start and lifecycle events
+
+Date: 2026-11-26
+
+Status: Decided
+
+Context: Rooms owns the lobby reservation and Game owns the frozen match. A
+Game reply can be lost after its database commits. Rooms must resolve that
+outcome without creating a second match or letting the lobby change underneath
+the saved snapshot.
+
+Decision: Persist the Start identity and snapshot in Rooms before the
+authenticated HTTP call. Game deduplicates by room and request identity.
+Rooms keeps the reservation through an ambiguous outcome and retries the same
+operation. Its worker and authenticated Sync reconcile lifecycle outcomes over
+the existing HTTP endpoint.
+
+Alternatives considered: A message broker could buffer commands through a
+longer outage. It would need an outbox to publish after each database commit,
+idempotent consumers and an explicit policy for delayed lifecycle events.
+Keeping the cross-domain call inside a shared database transaction would
+remove independent storage and deployability.
+
+Consequences: Rooms can keep serving lobby reads during a Game outage. New
+matches wait on Game, and recovery depends on Rooms running again or receiving
+Sync. Measure the age and number of unresolved operations. Revisit a broker
+if long peer outages regularly outlast the lobby wait budget, or if several
+independent consumers need durable delivery and replay. Test deduplication and
+ordering before moving the existing recovery path.
