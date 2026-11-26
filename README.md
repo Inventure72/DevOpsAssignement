@@ -4,6 +4,9 @@ A music party game: listen to a song, guess its title and identify which players
 
 ## Assignment 2 local Demo
 
+Play the [live Azure Demo](https://mgiorgettiieu2024ui1.z28.web.core.windows.net/)
+or start a local copy.
+
 With Docker and Compose installed, run this from the repository root:
 
 ```sh
@@ -39,6 +42,16 @@ together so the existing logins still match on the next start.
 The Rooms API includes a [bundled Demo catalog](catalog/bundled_demo/README.md)
 and assigns listening libraries on the server. Demo admission and media work
 without an external pack or a provider account.
+
+### Run one Assignment 2 service
+
+Follow the [Rooms](services/rooms/README.md#local-database-setup-and-real-sql-tests)
+or [Game](services/game/README.md) setup from the repository root. Install the
+chosen service's requirements and supply its own SQL Server `DATABASE_URL`.
+Run `python -m services.rooms` or `python -m services.game` using Python 3.12+.
+Each service starts on its own and exposes `/health`. Playing the split Demo
+requires the UI and both services. The [system manifest](system.yaml) lists
+the settings and the HTTP calls each service makes.
 
 ## Assignment 1 legacy launcher
 
@@ -111,6 +124,8 @@ See [music pack setup](catalog/README.md) for more help. Add `--check` to a laun
 
 ## Direct server startup
 
+These commands start the legacy Assignment 1 monolith.
+
 After installing `requirements.txt`, start the server directly:
 
 ```bash
@@ -151,9 +166,8 @@ images and validates `system.yaml` against the supplied schema and the declared
 HTTP calls against OpenAPI. These verification jobs use disposable local data
 and require no Azure credentials. The separate deployment job runs only on
 pushes to `main` after every verification job passes for the same commit.
-The deployed Demo is served by the [Azure static site](https://mgiorgettiieu2024ui1.z28.web.core.windows.net/).
 See the [Azure deployment runbook](docs/22_AZURE_DEPLOYMENT.md) for
-initial setup, credentials and baseline evidence.
+initial setup, GitHub OIDC configuration and the deployment procedure.
 
 With the project Python environment installed and **Node 24+**, run all tests:
 
@@ -179,8 +193,7 @@ Tests use temporary data and offline provider substitutes; no keys or music down
 
 ## Architecture
 
-Assignment 2 extraction is in progress on the development branch. Rooms and
-Game now live in `services/rooms/domain` and `services/game/domain`. Independent
+Rooms and Game live in `services/rooms/domain` and `services/game/domain`. Independent
 [Rooms](services/rooms/README.md) and [Game](services/game/README.md) APIs own
 separate SQL Server databases with automatic migrations. Rooms seeds the Demo
 catalog at startup; Game stores frozen match facts. The existing browser game
@@ -189,7 +202,10 @@ The [Assignment 1 transfer runbook](docs/21_ASSIGNMENT_1_TRANSFER.md) covers
 offline copying and recovery. [Rooms coordinates Start, presence and completion
 with Game over HTTP](docs/20_SERVICE_SPLIT.md#http-lifecycle-milestone--2026-11-18).
 
-The app runs in one process with two core domains: **Rooms** handles players and membership; **Game** handles rounds and scoring. Both use SQLite. Spotify and Demo share an import and admission path. The browser separates presentation, transport and host audio.
+In the Assignment 1 monolith, both domains share one SQLite file. Rooms handles
+players and membership. Game handles rounds and scoring. Spotify and legacy Demo
+share the import and admission path. The browser separates presentation,
+transport and host audio.
 
 - [Architecture and boundaries](docs/05_ARCHITECTURE.md)
 - [Data model](docs/06_DATA_MODEL.md)
@@ -202,5 +218,6 @@ The app runs in one process with two core domains: **Rooms** handles players and
 [Assignment 1 checklist](docs/17_ASSIGNMENT_REVIEW.md) tracks its deliverables.
 The root AI_USAGE.md is maintained locally and intentionally ignored during
 Assignment 2; the author will review, clean and commit it before final submission.
-The [Assignment 2 plan](docs/19_ASSIGNMENT_2_PLAN.md) and
-[service boundary](docs/20_SERVICE_SPLIT.md) track the current work.
+The [Assignment 2 report](docs/23_ASSIGNMENT_2_REPORT.md) records the Azure
+migration, restart and partial-failure evidence. The
+[service boundary](docs/20_SERVICE_SPLIT.md) describes the HTTP contracts.
